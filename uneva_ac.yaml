@@ -1,0 +1,27 @@
+esphome:
+  name: uneva-ac-controller
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+wifi:
+  ssid: "TOTOLINK ND300"
+  password: "A777763945A"
+
+api:
+ota:
+  - platform: esphome
+
+uart:
+  id: ac_uart
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 9600
+
+# منصة midea_ac الممتازة والمطابقة تماماً للوحات مكيف UNEVA
+climate:
+  - platform: midea_ac
+    name: "UNEVA Air Conditioner"
+    uart_id: ac_uart
