@@ -1,23 +1,15 @@
 name: Build ESPHome Firmware
 
 on:
-  workflow_dispatch: # لتشغيل التجميع يدوياً بضغطة زر
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: esphome/esphome:latest # استخدام بيئة رسمية معزولة ومجهزة للتجميع
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install ESPHome
-        run: |
-          pip install esphome
 
       - name: Compile ESPHome Firmware
         run: |
