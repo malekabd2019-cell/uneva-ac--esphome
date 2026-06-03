@@ -22,6 +22,6 @@ uart:
 
 # منصة midea_ac الممتازة والمطابقة تماماً للوحات مكيف UNEVA
 climate:
-  - platform: midea_ac
+  - platform: midea
     name: "UNEVA Air Conditioner"
     uart_id: ac_uart
