@@ -1,0 +1,24 @@
+substitutions:
+  device_name: unevaz
+  humanly_name: Unevaz Air Conditioner
+  wifi_ssid: "TOTOLINK ND300"
+  wifi_password: "A777763945A"
+  recovery_pass: mKSzmBdt7DAj
+  ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
+  api_key: 1mUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3
+  uart_rx: GPIO3
+  uart_tx: GPIO1
+  receive_led: GPIO2
+  transmit_led: GPIO2
+
+packages:
+  remote_package:
+    url: https://github.com/I-am-nightingale/tcl-ac
+    files:
+      - packages/core.yaml
+    refresh: 30s
+
+esphome:
+  platform: ESP32
+  board: esp32dev
+  
