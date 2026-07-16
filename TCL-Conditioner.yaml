@@ -19,7 +19,8 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-esphome:
-  platform: ESP32
+esp32:
   board: esp32dev
-  
+  framework:
+    type: arduino
+    
