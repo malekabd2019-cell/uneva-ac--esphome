@@ -14,7 +14,6 @@ substitutions:
 packages:
   remote_package:
     url: https://github.com/I-am-nightingale/tcl-ac
-    ref: master
     files:
       - packages/core.yaml
     refresh: 30s
