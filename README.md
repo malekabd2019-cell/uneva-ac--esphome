@@ -1,105 +1,124 @@
-# 🌀 TCL Air Conditioner Integration for Home Assistant
+Внешний компонент кондиционеров TCL и аналогов для Home Assistant, используя ESPHome.
+Поддерживаются кондиционеры типа TAC-07CHSA и подобные. Увы, предположить точно получится подключить кондиционер или нет практически
+невозможно из-за огромного разбега в комплектациях: даже одна и та же модель, буквально буква-в-букву может, например, не иметь
+родного модуля WiFI, не иметь провода с USB разъемом или вовсе на плате управления может не быть впаян разъем UART.
+Однако, в целом, с пайкой или без, проверены следующие кондиционеры:
+- Axioma ASX09H1/ASB09H1
+- Ballu Discovery DC BSVI-07HN8
+- Ballu Discovery DC BSVI-09HN8
+- Ballu Discovery DC BSVI-12HN8
+- Daichi AIR20AVQ1/AIR20FV1
+- Daichi AIR25AVQS1R-1/AIR25FVS1R-1
+- Daichi AIR35AVQS1R-1/AIR35FVS1R-1
+- Daichi DA35EVQ1-1/DF35EV1-1
+- Dantex RK-12SATI/RK-12SATIE
+- Ecostar Radium KVS-RAD09CH
+- Royal Clima Gloria Inverter
+- TCL ELI ONF 12
+- TCL Liferise ONF 09
+- TCL TAC-CT09INV/R
+- TCL One Inverter TACM-09HRID/E1 (возможно, иной порядок контактов)
+- TCL TAC-07CHSA/TPG-W
+- TCL TAC-09CHSA/TPG
+- TCL TAC-09CHSA/DSEI-W
+- TCL TAC-09HRID/E1
+- TCL TAC-12CHSA/TPG
+- TCL TAC-12CHSA/TPGI
+- TCL TAC-XAL24I
+- TCL TPG31IHB
 
-> 🇩🇪 Übersetzt mit ChatGPT – erfolgreich getestet mit **TCL TAC-12CHDA**  
-> Einfaches DIY-Projekt mit ESP32 + USB-Kabel. Keine Cloud nötig.
+Компоненту требуется HomeAsistant и ESPHome версии не ниже 2023.3.0 !
+____
+Это все для работы ИСКЛЮЧИТЕЛЬНО с HomeAsistant и ESPHome. Если Вас интересует другие варианты или возможность подключить кондиционер
+как-то иначе к каким-то другим системам, то мне есть что предложить:
+[Вариант для подключения через MQTT](https://github.com/pavel211/TCL-TAC-07-WiFi)
+____
+Статья по проекту находится [в моем канале на Дзене](https://dzen.ru/a/ZmdoyUNswXWnulhg)
 
----
+Все работает, даже стабильно. Какие глюки видел- устранил, какие желания были- реализовал. Конечно, не все, хотелось бы еще спорткар..
+Используя компонент прямо сейчас Вы уже не рискуете душевным здоровьем, но внезапные глюки вполне могут напасть. Если вдруг такое
+случиться именно с Вами- прошу сообщить мне на Дзене, приму меры.
+Подробное описание будет постепенно появляться [в моем канале на Дзене](https://dzen.ru/a/ZmdoyUNswXWnulhg) , сюда буду выкладывать
+самое важное по мере сил.
+____
+Образец для конфигурации ESPHome в файле TCL-Conditioner.yaml , упрощенный вариант конфигурации- Sample_conf.yaml . Скачайте к себе
+и используйте в ESPHome, или просто скопируйте из него всю конфигурацию и вставьте вместо своей, однако, не забыв отредактировать
+все поля. В файле есть подсказки по каждому полю.
 
-## 🛠️ Was du brauchst
+Вопрос может возникнуть с 2 моментами: платформа (чип или модуль) и подгружаемые файлы. Попробую объяснить.
 
-- **ESP32** (z. B. ESP32-C3, WROOM32, NodeMCU)
-- **USB-A-Stecker oder -Kabel**  
-  👉 Ich habe dieses verwendet: [AliExpress-Link](https://www.aliexpress.com/item/1005005776162012.html)
-- **Home Assistant mit ESPHome (ab Version 2023.3.0)**
+## Настройка платформы
+Платформа настраивается точно так же, как ей и полагается настраиваться в ESPHome. Например, так выглядит кусок кода для ESP-01S:
+```yaml
+esp8266:
+  board: esp01_1m
+```
+А вот так выглядит кусок кода для модуля Hommyn HDN/WFN-02-01 из первой статьи про кондиционер:
+```yaml
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+```
+Можно подключать платформу и через основной конфиг. Вот, предложенный [испытателем альфа-версии](https://github.com/kai-zer-ru), пример для Esp32 WROOM32:
+```yaml
+esphome:
+  platform: ESP32
+  board: nodemcu-32s
+```
+А это уже пример для wemos D1 Mini nodemcu esp12f:
+```yaml
+esphome:
+  platform: ESP8266
+  board: esp12e
+```
+В общем- все то же самое, как и обычно, вариант под свою платформу легко ищется в интернете.
 
----
+**!Важно не забыть закомментировать или удалить строки других платформ!**
 
-## 🔌 Verkabelung
-
-| USB-A Pin | Kabelfarbe | → ESP32 Pin |
-|-----------|------------|--------------|
-| GND       | Schwarz    | VIN/VCC      |
-| D+        | Grün       | GND          |
-| D-        | Grau       | RXD          |
-| VBUS      | Rot        | TXD          |
-
-### 🔍 Beispielbilder
-(Beachte, dass ich hier nicht auf die Farben der Kabel geachtet habe. Die Farben in der Tabelle entsprechen jedoch in der Regel gängigen USB-A-Kabeln, die man einfach abschneiden kann.)
-
-<img src="https://github.com/user-attachments/assets/9b674e06-41ca-4bcf-b09b-691a5fbd8545" width="400"/>
-<br/>
-
-![Wiring Example 2](https://github.com/user-attachments/assets/e30fadd9-19cd-47ec-baab-86f8a80410f6)
-
-![7480a856c7839044d7a04292d352b709a2155c07_2_296x500](https://github.com/user-attachments/assets/5b3ccbb8-eb62-4743-8d05-f88a9b986743)
-
----
-
-## 🧠 Einrichtung in Home Assistant
-
-> Die Lösung basiert auf **ESPHome** und funktioniert nur mit Home Assistant.
-
-### 1. ESPHome installieren
-
-- In Home Assistant unter **Einstellungen → Add-ons → ESPHome** installieren
-
-### 2. Neues Gerät erstellen
-
-- Im ESPHome-Dashboard → "New Device"
-- Deinen ESP32-Typ auswählen, z. B. `esp32-c3-devkitm-1` oder `nodemcu-32s`
-
-### 3. Konfiguration einfügen
-
-#### Option A: Einfache Konfiguration
-[📄 Sample_conf.yaml](https://github.com/sorz2122/tclac/blob/master/Sample_conf.yaml)
-
-#### Option B: Erweiterte Konfiguration
-[📄 TCL-Conditioner.yaml](https://github.com/sorz2122/tclac/blob/master/TCL-Conditioner.yaml)
-
-📝 **Wichtig:**  
-- WLAN-Daten, Gerätename etc. anpassen  
-- Kommentare im YAML helfen beim Einrichten
-
-### 4. Auf ESP32 flashen
-
-- USB-Kabel anschließen oder OTA (Over-the-Air) verwenden
-
----
-
-## ✅ Kompatible Klimaanlagen
-
-Diese Modelle wurden erfolgreich getestet:
-
-- **TCL:** TAC-07CHSA / TAC-09CHSA / TAC-12CHSA / TAC-12CHDA
-- **Daichi:** AIR20AVQ1, AIR25AVQS1R-1, DA35EVQ1-1
-- **Axioma:** ASX09H1 / ASB09H1
-- **Dantex:** RK-12SATI / RK-12SATIE  
-- ...und ähnliche Modelle
-
-⚠️ **Hinweis:**  
-Auch wenn die Modellbezeichnung passt, kann es Unterschiede geben (kein USB-Anschluss, kein UART auf der Platine etc.).
-
----
-
-## ☕ Unterstützung
-
-https://buymeacoffee.com/sorz2122
-
-<img src="https://github.com/user-attachments/assets/87d5d62f-ba5c-4a7e-a4b8-4cf1fd3018af" width="400"/>
-<br/>
-
----
-
-## 🔧 Erweiterte Konfiguration per Remote Package
-
-Du kannst die Konfiguration modular laden:
-
+## Настройка подгружаемых файлов
+Для добавления или удаления определенных частей конфига я решил использовать подгружаемые файлы- они загружаются ESPHome автоматически,
+если у сервера с Home Assistant есть доступ в интернет. Такой подход позволяет редактировать и обновлять не весь конфиг куском,
+а частями, не трогая то, что работает.
+Еще один плюс- не нужно километровые куски кода комментировать или раскомментировать, не нужно знать разметку, нет необходимости считать
+проклятые пробелы и прочее. Все делается добавлением или удалением ссылок на файлы. Итак, вот так выглядит блок подгружаемых файлов:
 ```yaml
 packages:
   remote_package:
-    url: https://github.com/sorz2122/tclac.git
+    url: https://github.com/I-am-nightingale/tclac.git
     ref: master
     files:
-      - packages/core.yaml   # Hauptmodul
-      # - packages/leds.yaml # Optional
+    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
+      - packages/core.yaml # Ядро всего сущего
+      # - packages/leds.yaml
     refresh: 30s
+```
+Все подгружаемые файлы указываются в секции **files:**. Для работы необходимо, чтобы был хотя-бы
+```yaml
+- packages/core.yaml # Ядро всего сущего
+```
+Все остальные модули по желанию (их описание в том же файле чуть выше). **Важно**, чтобы все строки с файлами были выровнены по
+импровизированной метке, которую я специально указал, иначе у ESPHome возникнет много вопросов к Вам. Например, **должно быть так:**
+```yaml
+packages:
+  remote_package:
+    url: https://github.com/I-am-nightingale/tclac.git
+    ref: master
+    files:
+    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
+      - packages/core.yaml # Ядро всего сущего
+      - packages/leds.yaml
+    refresh: 30s
+```
+А вот так уже **не правильно:**
+```yaml
+packages:
+  remote_package:
+    url: https://github.com/I-am-nightingale/tclac.git
+    ref: master
+    files:
+    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
+      - packages/core.yaml # Ядро всего сущего
+        - packages/leds.yaml
+    refresh: 30s
+```
