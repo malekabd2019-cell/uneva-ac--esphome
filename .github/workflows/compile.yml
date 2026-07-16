@@ -1,0 +1,26 @@
+name: Compile ESPHome
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build ESPHome Firmware
+        uses: esphome/build-action@v2
+        id: esphome-build
+        with:
+          yaml_file: unevaz.yaml
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: ${{ steps.esphome-build.outputs.name }}
+          
