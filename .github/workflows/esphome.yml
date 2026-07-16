@@ -13,10 +13,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build ESPHome Firmware
-        uses: esphome/build-action@v2
+        uses: esphome/build-action@v3
         id: esphome-build
         with:
           yaml_file: TCL-Conditioner.yaml
+          cache: false
 
       - name: Extract and Rename Firmware
         run: |
