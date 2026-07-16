@@ -2,25 +2,34 @@ name: Compile ESPHome
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build ESPHome Firmware
-        uses: esphome/build-action@v2
-        id: esphome-build
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          yaml_file: unevaz.yaml
+          python-version: "3.12"
+
+      - name: Install ESPHome
+        run: |
+          python -m pip install --upgrade pip
+          pip install esphome
+
+      - name: Compile firmware
+        run: |
+          esphome compile unevaz.yaml
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: ${{ steps.esphome-build.outputs.name }}
-          
+          path: .esphome/build/**/firmware.bin
