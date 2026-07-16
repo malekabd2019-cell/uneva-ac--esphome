@@ -18,9 +18,15 @@ jobs:
         with:
           yaml_file: TCL-Conditioner.yaml
 
+      - name: Extract and Rename Firmware
+        run: |
+          mkdir -p output
+          find . -name "firmware.bin" -exec cp {} output/tclac_firmware.bin \; 2>/dev/null || true
+          find . -name "tclac.bin" -exec cp {} output/tclac_firmware.bin \; 2>/dev/null || true
+
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: firmware
-          path: .esphome/build/tclac/.pioenvs/tclac/firmware.bin
+          name: tclac_firmware
+          path: output/tclac_firmware.bin
           
