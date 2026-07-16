@@ -12,12 +12,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build ESPHome Firmware
-        uses: esphome/build-action@v3
-        id: esphome-build
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          yaml_file: TCL-Conditioner.yaml
-          cache: false
+          python-version: '3.11'
+
+      - name: Install ESPHome
+        run: |
+          pip3 install esphome
+
+      - name: Build ESPHome Firmware
+        run: |
+          esphome compile TCL-Conditioner.yaml
 
       - name: Extract and Rename Firmware
         run: |
