@@ -1,4 +1,4 @@
-name: Compile ESPHome
+Name: Compile ESPHome
 
 on:
   push:
@@ -28,12 +28,15 @@ jobs:
       - name: Extract and Rename Firmware
         run: |
           mkdir -p output
-          find . -name "firmware.bin" -exec cp {} output/tclac_firmware.bin \; 2>/dev/null || true
-          find . -name "tclac.bin" -exec cp {} output/tclac_firmware.bin \; 2>/dev/null || true
+          # البحث عن ملف الـ factory الكامل المخصص للإقلاع لأول مرة
+          find . -name "firmware.factory.bin" -exec cp {} output/tclac_firmware_factory.bin \; 2>/dev/null || true
+          
+          # خطوة احتياطية في حال لم يجد الاسم السابق بالكامل
+          find . -name "*factory*.bin" -exec cp {} output/tclac_firmware_factory.bin \; 2>/dev/null || true
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: tclac_firmware
-          path: output/tclac_firmware.bin
+          path: output/tclac_firmware_factory.bin
           
