@@ -1,4 +1,4 @@
-Name: Compile ESPHome
+name: Compile ESPHome
 
 on:
   push:
