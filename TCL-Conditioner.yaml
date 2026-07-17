@@ -7,13 +7,13 @@ esp32:
   framework:
     type: arduino
 
-# 1. Fetch the custom TCL/Uneva AC component
+# 1. Read directly from the local "components" folder in your repository
 external_components:
   - source:
-      type: git
-      url: https://github.com/malekabd2019-cell/TCL-Conditioner
+      type: local
+      path: components
 
-# 2. WiFi Configuration
+# 2. Your WiFi Configuration
 wifi:
   ssid: "TOTOLINK ND300"
   password: "A777763945A"
