@@ -1,60 +1,52 @@
-# ملف إعدادات ESPHome لمكيف UNEVA المحدث بالكامل
-esphome:
-  name: uneva-ac
-  friendly_name: Uneva Air Conditioner
+substitutions:
+  # Уникальное имя этой конфигурации
+  device_name: uneva_ac
+  # Человеческое имя для кондиционера, для интерфейса:
+  humanly_name: Uneva Air Conditioner
+  # Настройки подключения к WiFI
+  # Имя точки доступа WiFI:
+  wifi_ssid: "TOTOLINK ND300"
+  # Пароль точки доступа WiFI:
+  wifi_password: "A777763945A"
+  # Пароль для точки доступа для восстановления, имя точки доступа будет: "{device_name} Fallback Hotspot"
+  recovery_pass: mKSzmBdt7DAj
+  # Пароль для обновления по воздуху
+  ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
+  # Ключ подключения к Home Assistant API
+  api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
+  # Выводы модуля, к которым подключен UART:
+  uart_rx: GPIO16
+  uart_tx: GPIO17
+  # Выводы модуля для подключения сигнальных светодиодов
+  receive_led: GPIO6
+  transmit_led: GPIO4
 
-# --- تحديد الفرع الرئيسي (ref: main) لحل مشكلة التحميل نهائياً ---
-external_components:
-  - source:
-      type: git
-      url: https://github.com/Scorpiof/esphome-tcl_ac
-      ref: main
+# Подгружаемые файлы (الملفات الأساسية المعتمدة لجهازك)
+packages:
+  remote_package:
+    url: https://github.com/I-am-nightingale/tclac.git
+    ref: master
+    files:
+      - packages/core.yaml
+    refresh: 30s
 
+# Выбранный модуль 
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
-# 1. تفعيل واجهة الويب للتحديث اللاسلكي (OTA) عبر المتصفح مباشرة
+# ========================================================
+# الإضافات الجديدة: وضع المولد وتفعيل التحديث اللاسلكي عبر المتصفح
+# ========================================================
+
+# 1. تفعيل واجهة الويب للتحديث اللاسلكي (OTA) مباشرة عبر المتصفح
 web_server:
   port: 80
 
-# إعدادات الاتصال بالواي فاي الخاصة بك
-wifi:
-  ssid: "TOTOLINK ND300"
-  password: "A777763945A"
-  
-  # تعيين آيبي ثابت للوصول السريع لصفحة التحديث اللاسلكي
-  manual_ip:
-    static_ip: 192.168.1.116
-    gateway: 192.168.1.1
-    subnet: 255.255.255.0
-
-# تمكين التحديث اللاسلكي والـ API للربط مع Home Assistant
-api:
-ota:
-  - platform: esphome
-
-# 2. ضبط منافذ الـ UART للتواصل مع لوحة المكيف الإلكترونية
-uart:
-  tx_pin: GPIO17 # سلك الإرسال المتصل بـ RX في المكيف
-  rx_pin: GPIO16 # سلك الاستقبال المتصل بـ TX في المكيف
-  baud_rate: 9600
-
-# 3. تعريف مكيف UNEVA كجهاز مناخ (Climate)
-climate:
-  - platform: tcl_ac
-    name: "uneva_ac Climate"
-
-# 4. إضافة ميزة وضع المولد (Generator Mode) لتقليل سحب الأمبير
+# 2. إضافة ميزة وضع المولد (Generator Mode) لتقليل سحب الأمبير
 select:
   - platform: tcl_ac
     gen_mode:
       name: "Generator Mode"
-
-# 5. إضافة زر إعادة تشغيل الـ ESP32 عن بُعد لسهولة الصيانة
-button:
-  - platform: restart
-    name: "Restart AC ESP32"
-    icon: "mdi:restart"
-    
+      
