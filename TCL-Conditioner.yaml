@@ -1,16 +1,18 @@
-# ملف إعدادات ESPHome لمكيف UNEVA
-# يشمل الواي فاي الخاص بك، تفعيل واجهة الويب للتحديث اللاسلكي (OTA) وميزة وضع المولد (Generator Mode)
-
+# ملف إعدادات ESPHome لمكيف UNEVA المحدث بالكامل
 esphome:
   name: uneva-ac
   friendly_name: Uneva Air Conditioner
+
+# --- تفعيل المكون الخارجي ليتمكن GitHub من تحميل مكتبة المكيف ---
+external_components:
+  - source: github://Scorpiof/esphome-tcl_ac
 
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
-# 1. تفعيل واجهة الويب للتحديث اللاسلكي (OTA) عبر المتصفح مباشرة
+# 1. تفعيل واجهة الويب للتحديث اللاسلكي (OTA) عبر المتصفح
 web_server:
   port: 80
 
@@ -36,7 +38,7 @@ uart:
   rx_pin: GPIO16 # سلك الاستقبال المتصل بـ TX في المكيف
   baud_rate: 9600
 
-# 3. تعريف مكيف UNEVA (بروتوكول TCL) كجهاز مناخ (Climate)
+# 3. تعريف مكيف UNEVA كجهاز مناخ (Climate)
 climate:
   - platform: tcl_ac
     name: "uneva_ac Climate"
