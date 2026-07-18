@@ -113,6 +113,7 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 			checksum = 0;
 		}
 
+		void set_gen_mode(int mode);
 		void readData();
 		void takeControl();
 		void loop() override;
