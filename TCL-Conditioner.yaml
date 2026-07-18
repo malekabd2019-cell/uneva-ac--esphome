@@ -3,18 +3,19 @@ esphome:
   name: uneva-ac
   friendly_name: Uneva Air Conditioner
 
-# --- تعديل استدعاء المكون الخارجي بالطريقة الكاملة لتجنب خطأ جيت هاب ---
+# --- تحديد الفرع الرئيسي (ref: main) لحل مشكلة التحميل نهائياً ---
 external_components:
   - source:
       type: git
       url: https://github.com/Scorpiof/esphome-tcl_ac
+      ref: main
 
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
-# 1. تفعيل واجهة الويب للتحديث اللاسلكي (OTA) عبر المتصفح
+# 1. تفعيل واجهة الويب للتحديث اللاسلكي (OTA) عبر المتصفح مباشرة
 web_server:
   port: 80
 
