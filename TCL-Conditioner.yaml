@@ -3,9 +3,11 @@ esphome:
   name: uneva-ac
   friendly_name: Uneva Air Conditioner
 
-# --- تفعيل المكون الخارجي ليتمكن GitHub من تحميل مكتبة المكيف ---
+# --- تعديل استدعاء المكون الخارجي بالطريقة الكاملة لتجنب خطأ جيت هاب ---
 external_components:
-  - source: github://Scorpiof/esphome-tcl_ac
+  - source:
+      type: git
+      url: https://github.com/Scorpiof/esphome-tcl_ac
 
 esp32:
   board: esp32dev
