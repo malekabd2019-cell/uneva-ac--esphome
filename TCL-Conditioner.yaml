@@ -38,10 +38,28 @@ web_server:
   port: 80
 
 # ==========================================
-# إضافة وضع المولد للتحكم في قدرة سحب الأمبير
+# إضافة وضع المولد الذكي للتحكم في الأمبير
 # ==========================================
 select:
-  - platform: tclac
-    gen_mode:
-      name: "وضع المولد"
-      
+  - platform: template
+    name: "وضع المولد (Gen Mode)"
+    id: gen_mode_selector
+    icon: "mdi:generator-portable"
+    options:
+      - "إيقاف (Off)"
+      - "المستوى 1 (L1 - 80%)"
+      - "المستوى 2 (L2 - 70%)"
+      - "المستوى 3 (L3 - 50%)"
+    optimistic: true
+    set_action:
+      lambda: |-
+        if (x == "إيقاف (Off)") {
+          id(uneva_ac).set_gen_mode(0);
+        } else if (x == "المستوى 1 (L1 - 80%)") {
+          id(uneva_ac).set_gen_mode(1);
+        } else if (x == "المستوى 2 (L2 - 70%)") {
+          id(uneva_ac).set_gen_mode(2);
+        } else if (x == "المستوى 3 (L3 - 50%)") {
+          id(uneva_ac).set_gen_mode(3);
+        }
+        
