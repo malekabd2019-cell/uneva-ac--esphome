@@ -1,4 +1,4 @@
-Name: Compile ESPHome
+name: Compile ESPHome
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
       - name: Extract and Rename Firmware
         run: |
           mkdir -p output
-          # 1. استخراج ملف التحديث اللاسلكي OTA العادي (وهذا هو المطلوب للمتصفح)
+          # 1. استخراج ملف التحديث اللاسلكي OTA العادي (المطلوب للمتصفح)
           find . -name "firmware.bin" -exec cp {} output/tclac_firmware_ota.bin \; 2>/dev/null || true
           
           # 2. استخراج ملف الـ factory الكامل المخصص للإقلاع لأول مرة عبر السلك
@@ -39,5 +39,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tclac_firmware
-          path: output/ # تعديل المسار لرفع المجلد بالكامل ليحتوي على الملفين معاً
+          path: output/
           
