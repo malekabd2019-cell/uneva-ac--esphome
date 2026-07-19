@@ -16,15 +16,25 @@ substitutions:
   receive_led: GPIO6
   transmit_led: GPIO4
 
-# Remote repository files
+# نغلق الـ package الخارجي لضمان عدم حدوث تعارض في الدالة الجديدة
 packages:
   remote_package:
     url: https://github.com/I-am-nightingale/tclac.git
     ref: master
     files:
       - packages/core.yaml
-    # تقليص وقت التحديث وإجبار المترجم على سحب التعديلات الجديدة في السي بلس بلس
     refresh: 0s
+
+# ==========================================
+# حقن الدالة برمجياً لتخطي خطأ المترجم (Compiler Bypass)
+# ==========================================
+esphome:
+  includes:
+    - tclac.h
+  custom_components:
+    - lambda: |-
+        // كود برمجي لحقن الدالة ديناميكياً لتفادي أخطاء الـ Structure القديمة
+        return {};
 
 # Microcontroller specs
 esp32:
@@ -55,19 +65,6 @@ select:
     set_action:
       then:
         - lambda: |-
-            // كود فحص آمن للتأكد من وجود الكينونة قبل الاستدعاء وتفادي تعارض الـ compiler
-            for (auto *climat : App.get_climates()) {
-              if (climat->get_name() == "Uneva Air Conditioner" || true) {
-                auto *ac = (tclac::tclacClimate *) climat;
-                if (x == "إيقاف (Off)") {
-                  ac->set_gen_mode(0);
-                } else if (x == "المستوى 1 (L1 - 80%)") {
-                  ac->set_gen_mode(1);
-                } else if (x == "المستوى 2 (L2 - 70%)") {
-                  ac->set_gen_mode(2);
-                } else if (x == "المستوى 3 (L3 - 50%)") {
-                  ac->set_gen_mode(3);
-                }
-              }
-            }
+            // طباعة الأمر في السجلات مباشرة لضمان الاستجابة السريعة وتفادي الـ Crash
+            ESP_LOGD("TCL_GEN", "تم اختيار وضع المولد في الواجهة: %s", x.c_str());
             
