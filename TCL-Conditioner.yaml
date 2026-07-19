@@ -1,4 +1,4 @@
-Substitutions:
+substitutions:
   # Unique name for this configuration
   device_name: uneva_ac
   # Human-readable name for the interface
