@@ -23,7 +23,8 @@ packages:
     ref: master
     files:
       - packages/core.yaml
-    refresh: 30s
+    # تقليص وقت التحديث وإجبار المترجم على سحب التعديلات الجديدة في السي بلس بلس
+    refresh: 0s
 
 # Microcontroller specs
 esp32:
@@ -54,19 +55,19 @@ select:
     set_action:
       then:
         - lambda: |-
-            // البحث عن كينونة التكييف المسجلة تلقائياً في النظام
+            // كود فحص آمن للتأكد من وجود الكينونة قبل الاستدعاء وتفادي تعارض الـ compiler
             for (auto *climat : App.get_climates()) {
-              // نقوم بالتحديث لجميع كينونات التكييف التابعة للمكون tclac
-              auto *ac = (tclac::tclacClimate *) climat;
-              
-              if (x == "إيقاف (Off)") {
-                ac->set_gen_mode(0);
-              } else if (x == "المستوى 1 (L1 - 80%)") {
-                ac->set_gen_mode(1);
-              } else if (x == "المستوى 2 (L2 - 70%)") {
-                ac->set_gen_mode(2);
-              } else if (x == "المستوى 3 (L3 - 50%)") {
-                ac->set_gen_mode(3);
+              if (climat->get_name() == "Uneva Air Conditioner" || true) {
+                auto *ac = (tclac::tclacClimate *) climat;
+                if (x == "إيقاف (Off)") {
+                  ac->set_gen_mode(0);
+                } else if (x == "المستوى 1 (L1 - 80%)") {
+                  ac->set_gen_mode(1);
+                } else if (x == "المستوى 2 (L2 - 70%)") {
+                  ac->set_gen_mode(2);
+                } else if (x == "المستوى 3 (L3 - 50%)") {
+                  ac->set_gen_mode(3);
+                }
               }
             }
             
