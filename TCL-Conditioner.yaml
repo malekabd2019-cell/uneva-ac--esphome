@@ -16,10 +16,21 @@ substitutions:
   receive_led: GPIO6
   transmit_led: GPIO4
 
-# جلب المكون المخصص من GitHub مباشرة
-external_components:
-  - source: github://I-am-nightingale/tclac
-    components: [ tclac ]
+# ==========================================
+# قسم ESPHome الأساسي الإجباري (تمت إضافته)
+# ==========================================
+esphome:
+  name: ${device_name}
+  friendly_name: ${humanly_name}
+
+# ملفات المستودع الخارجي
+packages:
+  remote_package:
+    url: https://github.com/I-am-nightingale/tclac.git
+    ref: master
+    files:
+      - packages/core.yaml
+    refresh: 0s
 
 # مواصفات المتحكم
 esp32:
