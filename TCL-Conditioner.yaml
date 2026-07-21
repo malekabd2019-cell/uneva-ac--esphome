@@ -1,6 +1,6 @@
 substitutions:
-  # اسم الجهاز بدون شرطة سفلية لتفادي تنبيه الشبكة
-  device_name: uneva-ac
+  # يجب استخدام الشرطة السفلية _ لكي تقبلها معرفات الـ ID
+  device_name: uneva_ac
   # الاسم المفهوم للشاشة
   humanly_name: Uneva Air Conditioner
   # إعدادات الواي فاي
@@ -21,7 +21,7 @@ esphome:
   name: ${device_name}
   friendly_name: ${humanly_name}
 
-# استدعاء الحزمة الأصلية (هي من تقوم بتعريف المكيف تلقائياً)
+# استدعاء الحزمة الأصلية
 packages:
   remote_package:
     url: https://github.com/I-am-nightingale/tclac.git
