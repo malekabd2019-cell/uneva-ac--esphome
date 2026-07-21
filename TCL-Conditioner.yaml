@@ -1,22 +1,17 @@
 substitutions:
-  # Unique name for this configuration
   device_name: uneva_ac
-  # Human-readable name for the interface
   humanly_name: Uneva Air Conditioner
-  # WiFI settings
   wifi_ssid: "TOTOLINK ND300"
   wifi_password: "A777763945A"
-  # Passwords and Keys
   recovery_pass: mKSzmBdt7DAj
   ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
   api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
-  # UART and LED Pins
   uart_rx: GPIO16
   uart_tx: GPIO17
   receive_led: GPIO6
   transmit_led: GPIO4
 
-# ملفات المستودع الخارجي
+packages:
 packages:
   remote_package:
     url: https://github.com/I-am-nightingale/tclac.git
@@ -25,23 +20,24 @@ packages:
       - packages/core.yaml
     refresh: 0s
 
-# مواصفات المتحكم
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
-# واجهة الويب للتحديث اللاسلكي
 web_server:
   port: 80
 
-# ربط كينونة الـ UART للتحكم بالمكيف
 uart:
   id: tcl_uart
 
-# ==========================================
-# قائمة اختيار وضع المولد المحدثة والمنظمة
-# ==========================================
+# متغير عالمي لحفظ وضع المولد الحالي لكي لا يمسحه المكيف
+globals:
+  - id: active_gen_mode
+    type: uint8_t
+    restore_value: yes
+    initial_value: '0'
+
 select:
   - platform: template
     name: "وضع المولد (Gen Mode)"
@@ -57,40 +53,41 @@ select:
     set_action:
       then:
         - lambda: |-
-            // 1. قراءة درجة الحرارة الحالية المضبوطة في التطبيق (مثلاً 20) لعدم تغييرها
-            uint8_t current_temp = (uint8_t)id(${device_name}climate).target_temperature;
+            uint8_t gen_val = 0x00;
+            if (x == "إيقاف (Off)") {
+              gen_val = 0x00;
+              id(active_gen_mode) = 0x00;
+              ESP_LOGI("GEN_MODE", "تم تعيين: إيقاف المولد");
+            } else if (x == "المستوى 1 (L1 - 2A)") {
+              gen_val = 0x01;
+              id(active_gen_mode) = 0x01;
+              ESP_LOGI("GEN_MODE", "تم تعيين: المستوى 1 (2A)");
+            } else if (x == "المستوى 2 (L2 - 4A)") {
+              gen_val = 0x02;
+              id(active_gen_mode) = 0x02;
+              ESP_LOGI("GEN_MODE", "تم تعيين: المستوى 2 (4A)");
+            } else if (x == "المستوى 3 (L3 - 5A)") {
+              gen_val = 0x03;
+              id(active_gen_mode) = 0x03;
+              ESP_LOGI("GEN_MODE", "تم تعيين: المستوى 3 (5A)");
+            }
 
-            // 2. بناء حزمة التحكم مع دمج درجة الحرارة الحية تلقائياً
+            // بناء الحزمة المدمجة مع القيمة المحفوظة والحرارة الحالية
+            uint8_t current_temp = (uint8_t)id(${device_name}climate).target_temperature;
             uint8_t cmd[38] = {
               0xBB, 0x00, 0x01, 0x03, 0x20, 0x03, 0x01, 0x64, 
               0x03, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 
               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-              0x0D, current_temp, 0x00, 0x00, 0x00, 0x00
+              0x0D, current_temp, gen_val, 0x00, 0x00, 0x00
             };
 
-            // 3. تطبيق شفرات التحكم المباشرة في الخانة المخصصة
-            if (x == "إيقاف (Off)") {
-              cmd[34] = 0x00;
-              ESP_LOGI("GEN_MODE", "إرسال: إيقاف المولد (الحرارة الحالية: %d)", current_temp);
-            } else if (x == "المستوى 1 (L1 - 2A)") {
-              cmd[34] = 0x01;
-              ESP_LOGI("GEN_MODE", "إرسال: تفعيل L1 (الحرارة الحالية: %d)", current_temp);
-            } else if (x == "المستوى 2 (L2 - 4A)") {
-              cmd[34] = 0x02;
-              ESP_LOGI("GEN_MODE", "إرسال: تفعيل L2 (الحرارة الحالية: %d)", current_temp);
-            } else if (x == "المستوى 3 (L3 - 5A)") {
-              cmd[34] = 0x03;
-              ESP_LOGI("GEN_MODE", "إرسال: تفعيل L3 (الحرارة الحالية: %d)", current_temp);
-            }
-
-            // 4. حساب الـ Checksum تلقائياً بناءً على البيانات الحية
+            // حساب الـ Checksum وتثبيته
             uint8_t sum = 0;
             for (int i = 0; i < 37; i++) {
               sum += cmd[i];
             }
             cmd[37] = 0x62 - sum;
 
-            // 5. إرسال الحزمة المكتملة عبر الـ UART
             id(tcl_uart).write_array(cmd, 38);
             
