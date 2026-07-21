@@ -1,43 +1,52 @@
 substitutions:
+  # Unique name for this configuration
   device_name: uneva_ac
+  # Human-readable name for the interface
   humanly_name: Uneva Air Conditioner
+  # WiFI settings
   wifi_ssid: "TOTOLINK ND300"
   wifi_password: "A777763945A"
+  # Passwords and Keys
   recovery_pass: mKSzmBdt7DAj
   ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
   api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
+  # UART and LED Pins
   uart_rx: GPIO16
   uart_tx: GPIO17
   receive_led: GPIO6
   transmit_led: GPIO4
 
-packages:
-packages:
-  remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
-    ref: master
-    files:
-      - packages/core.yaml
-    refresh: 0s
+# جلب المكون المخصص من GitHub مباشرة
+external_components:
+  - source: github://I-am-nightingale/tclac
+    components: [ tclac ]
 
+# مواصفات المتحكم
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
+# واجهة الويب للتحديث اللاسلكي
 web_server:
   port: 80
 
+# إعدادات منفذ الاتصال UART
 uart:
   id: tcl_uart
+  tx_pin: ${uart_tx}
+  rx_pin: ${uart_rx}
+  baud_rate: 9600
 
-# متغير عالمي لحفظ وضع المولد الحالي لكي لا يمسحه المكيف
-globals:
-  - id: active_gen_mode
-    type: uint8_t
-    restore_value: yes
-    initial_value: '0'
+# كينونة التحكم بالمكيف
+climate:
+  - platform: tclac
+    name: "${humanly_name}"
+    id: ${device_name}climate
 
+# ==========================================
+# قائمة اختيار وضع المولد (Gen Mode)
+# ==========================================
 select:
   - platform: template
     name: "وضع المولد (Gen Mode)"
@@ -53,41 +62,13 @@ select:
     set_action:
       then:
         - lambda: |-
-            uint8_t gen_val = 0x00;
             if (x == "إيقاف (Off)") {
-              gen_val = 0x00;
-              id(active_gen_mode) = 0x00;
-              ESP_LOGI("GEN_MODE", "تم تعيين: إيقاف المولد");
+              id(${device_name}climate).set_gen_mode(0x00);
             } else if (x == "المستوى 1 (L1 - 2A)") {
-              gen_val = 0x01;
-              id(active_gen_mode) = 0x01;
-              ESP_LOGI("GEN_MODE", "تم تعيين: المستوى 1 (2A)");
+              id(${device_name}climate).set_gen_mode(0x43);
             } else if (x == "المستوى 2 (L2 - 4A)") {
-              gen_val = 0x02;
-              id(active_gen_mode) = 0x02;
-              ESP_LOGI("GEN_MODE", "تم تعيين: المستوى 2 (4A)");
+              id(${device_name}climate).set_gen_mode(0x49);
             } else if (x == "المستوى 3 (L3 - 5A)") {
-              gen_val = 0x03;
-              id(active_gen_mode) = 0x03;
-              ESP_LOGI("GEN_MODE", "تم تعيين: المستوى 3 (5A)");
+              id(${device_name}climate).set_gen_mode(0x4D);
             }
-
-            // بناء الحزمة المدمجة مع القيمة المحفوظة والحرارة الحالية
-            uint8_t current_temp = (uint8_t)id(${device_name}climate).target_temperature;
-            uint8_t cmd[38] = {
-              0xBB, 0x00, 0x01, 0x03, 0x20, 0x03, 0x01, 0x64, 
-              0x03, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 
-              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-              0x0D, current_temp, gen_val, 0x00, 0x00, 0x00
-            };
-
-            // حساب الـ Checksum وتثبيته
-            uint8_t sum = 0;
-            for (int i = 0; i < 37; i++) {
-              sum += cmd[i];
-            }
-            cmd[37] = 0x62 - sum;
-
-            id(tcl_uart).write_array(cmd, 38);
             
