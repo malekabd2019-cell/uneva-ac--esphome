@@ -27,13 +27,11 @@ uart:
   rx_pin: ${uart_rx}
   baud_rate: 9600
 
-# استدعاء المكون المحلي المعالج
 climate:
   - platform: tclac
     name: "${humanly_name}"
     id: ${device_name}climate
 
-# قائمة التحكم المباشرة بالدالة الداخلية
 select:
   - platform: template
     name: "وضع المولد (Gen Mode)"
@@ -58,4 +56,3 @@ select:
             } else if (x == "المستوى 3 (L3 - 5A)") {
               id(${device_name}climate).set_gen_mode(0x4D);
             }
-            
