@@ -87,6 +87,6 @@ select:
 
             // إرسال الحزمة مرتين متتاليتين للتغلب على تضارب البث الدوري
             id(tcl_uart).write_array(cmd, 38);
-            esphome::delay(50);
+            delay(50);
             id(tcl_uart).write_array(cmd, 38);
             
