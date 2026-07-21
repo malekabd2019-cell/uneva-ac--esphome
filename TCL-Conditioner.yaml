@@ -35,18 +35,19 @@ esp32:
 web_server:
   port: 80
 
-# إعدادات الـ UART
+# ربط كينونة الـ UART للتحكم بالمكيف
 uart:
   id: tcl_uart
 
 # ==========================================
-# قائمة اختيار وضع المولد الرسمية والمضمونة
+# قائمة اختيار وضع المولد المحدثة والمنظمة
 # ==========================================
 select:
   - platform: template
     name: "وضع المولد (Gen Mode)"
     id: gen_mode_selector
     icon: "mdi:generator-portable"
+    entity_category: config
     options:
       - "إيقاف (Off)"
       - "المستوى 1 (L1 - 2A)"
@@ -56,37 +57,40 @@ select:
     set_action:
       then:
         - lambda: |-
-            // مصفوفة الأمر الأساسية المعتمدة والمطابقة للمشروع
+            // 1. قراءة درجة الحرارة الحالية المضبوطة في التطبيق (مثلاً 20) لعدم تغييرها
+            uint8_t current_temp = (uint8_t)id(${device_name}climate).target_temperature;
+
+            // 2. بناء حزمة التحكم مع دمج درجة الحرارة الحية تلقائياً
             uint8_t cmd[38] = {
               0xBB, 0x00, 0x01, 0x03, 0x20, 0x03, 0x01, 0x64, 
               0x03, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 
               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-              0x0D, 0x15, 0x00, 0x00, 0x00, 0x00
+              0x0D, current_temp, 0x00, 0x00, 0x00, 0x00
             };
 
-            // حقن القيم الرسمية للمولد في الخانة الصحيحة (index 14)
+            // 3. تطبيق شفرات التحكم المباشرة في الخانة المخصصة
             if (x == "إيقاف (Off)") {
-              cmd[14] = 0x00;
-              ESP_LOGI("GEN_MODE", "إرسال: إيقاف المولد");
+              cmd[34] = 0x00;
+              ESP_LOGI("GEN_MODE", "إرسال: إيقاف المولد (الحرارة الحالية: %d)", current_temp);
             } else if (x == "المستوى 1 (L1 - 2A)") {
-              cmd[14] = 0x01;
-              ESP_LOGI("GEN_MODE", "إرسال: مستوى 2 أمبير الفعلي");
+              cmd[34] = 0x01;
+              ESP_LOGI("GEN_MODE", "إرسال: تفعيل L1 (الحرارة الحالية: %d)", current_temp);
             } else if (x == "المستوى 2 (L2 - 4A)") {
-              cmd[14] = 0x02;
-              ESP_LOGI("GEN_MODE", "إرسال: مستوى 4 أمبير الفعلي");
+              cmd[34] = 0x02;
+              ESP_LOGI("GEN_MODE", "إرسال: تفعيل L2 (الحرارة الحالية: %d)", current_temp);
             } else if (x == "المستوى 3 (L3 - 5A)") {
-              cmd[14] = 0x03;
-              ESP_LOGI("GEN_MODE", "إرسال: مستوى 5 أمبير الفعلي");
+              cmd[34] = 0x03;
+              ESP_LOGI("GEN_MODE", "إرسال: تفعيل L3 (الحرارة الحالية: %d)", current_temp);
             }
 
-            // حساب الـ Checksum التلقائي والمضمون للمكيف
+            // 4. حساب الـ Checksum تلقائياً بناءً على البيانات الحية
             uint8_t sum = 0;
             for (int i = 0; i < 37; i++) {
               sum += cmd[i];
             }
             cmd[37] = 0x62 - sum;
 
-            // إرسال الحزمة فوراً عبر السلك
+            // 5. إرسال الحزمة المكتملة عبر الـ UART
             id(tcl_uart).write_array(cmd, 38);
             
