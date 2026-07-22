@@ -12,14 +12,8 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${humanly_name}
-
-packages:
-  remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
-    ref: master
-    files:
-      - packages/core.yaml
-    refresh: 0s
+  includes:
+    - tclac_gen.h
 
 esp32:
   board: esp32dev
@@ -34,4 +28,41 @@ uart:
   tx_pin: ${uart_tx}
   rx_pin: ${uart_rx}
   baud_rate: 9600
-  
+
+climate:
+  - platform: custom
+    lambda: |-
+      auto my_ac = new TCLACCustom();
+      my_ac->set_uart_parent(id(tcl_uart));
+      App.register_component(my_ac);
+      return {my_ac};
+    climates:
+      - name: "${humanly_name}"
+        id: uneva_climate
+
+select:
+  - platform: template
+    name: "وضع المولد (Gen Mode)"
+    id: gen_mode_selector
+    icon: "mdi:generator-portable"
+    entity_category: config
+    options:
+      - "إيقاف (Off)"
+      - "المستوى 1 (L1 - 2A)"
+      - "المستوى 2 (L2 - 4A)"
+      - "المستوى 3 (L3 - 5A)"
+    optimistic: true
+    set_action:
+      then:
+        - lambda: |-
+            auto ac = (TCLACCustom*) id(uneva_climate);
+            if (x == "إيقاف (Off)") {
+              ac->set_gen_mode(0x00);
+            } else if (x == "المستوى 1 (L1 - 2A)") {
+              ac->set_gen_mode(0x43);
+            } else if (x == "المستوى 2 (L2 - 4A)") {
+              ac->set_gen_mode(0x49);
+            } else if (x == "المستوى 3 (L3 - 5A)") {
+              ac->set_gen_mode(0x4D);
+            }
+            
