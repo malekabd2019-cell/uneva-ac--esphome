@@ -1,5 +1,5 @@
 substitutions:
-  device_name: uneva_ac
+  device_name: uneva-ac
   humanly_name: Uneva Air Conditioner
   wifi_ssid: "TOTOLINK ND300"
   wifi_password: "A777763945A"
@@ -12,8 +12,6 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${humanly_name}
-  includes:
-    - tclac_gen.h
 
 esp32:
   board: esp32dev
@@ -29,17 +27,90 @@ uart:
   rx_pin: ${uart_rx}
   baud_rate: 9600
 
-climate:
-  - platform: custom
-    lambda: |-
-      auto my_ac = new TCLACCustom();
-      my_ac->set_uart_parent(id(tcl_uart));
-      App.register_component(my_ac);
-      return {my_ac};
-    climates:
-      - name: "${humanly_name}"
-        id: uneva_climate
+# ==========================================
+# المتغيرات العامة لثبات وضع المولد
+# ==========================================
+globals:
+  - id: gen_mode_val
+    type: uint8_t
+    initial_value: '0x00'
 
+# ==========================================
+# سكربت بناء وإرسال الحزمة للمكيف عبر UART
+# ==========================================
+script:
+  - id: send_tcl_command
+    then:
+      - lambda: |-
+          // 1. تحديد وضع التكييف
+          uint8_t mode_byte = 0x03; // Cool
+          auto current_mode = id(uneva_climate).mode;
+          if (current_mode == climate::CLIMATE_MODE_OFF) {
+            mode_byte = 0x00;
+          } else if (current_mode == climate::CLIMATE_MODE_COOL) {
+            mode_byte = 0x03;
+          } else if (current_mode == climate::CLIMATE_MODE_HEAT) {
+            mode_byte = 0x01;
+          } else if (current_mode == climate::CLIMATE_MODE_FAN_ONLY) {
+            mode_byte = 0x07;
+          } else if (current_mode == climate::CLIMATE_MODE_DRY) {
+            mode_byte = 0x02;
+          }
+
+          // 2. تحديد درجة الحرارة المطلوبة
+          uint8_t target_temp = (uint8_t)id(uneva_climate).target_temperature;
+          if (target_temp < 16) target_temp = 16;
+          if (target_temp > 31) target_temp = 31;
+
+          // 3. بناء حزمة TCL (38 بايت)
+          uint8_t cmd[38] = {
+            0xBB, 0x00, 0x01, 0x03, 0x20, 0x03, 0x01, 0x64,
+            0x03, mode_byte, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x0D, target_temp, id(gen_mode_val), 0x00, 0x00, 0x00
+          };
+
+          // 4. حساب Checksum من البايت 3 إلى 36
+          uint8_t sum = 0;
+          for (int i = 3; i < 37; i++) {
+            sum += cmd[i];
+          }
+          cmd[37] = sum;
+
+          // 5. إرسال الحزمة للمكيف
+          id(tcl_uart).write_array(cmd, 38);
+
+# ==========================================
+# واجهة التكييف الرسمية (Template Climate)
+# ==========================================
+climate:
+  - platform: template
+    name: "${humanly_name}"
+    id: uneva_climate
+    modes:
+      - "OFF"
+      - "COOL"
+      - "HEAT"
+      - "DRY"
+      - "FAN_ONLY"
+    min_temperature: 16
+    max_temperature: 31
+    target_temperature_step: 1
+    control_action:
+      - lambda: |-
+          if (mode.has_value()) {
+            id(uneva_climate).mode = *mode;
+          }
+          if (target_temperature.has_value()) {
+            id(uneva_climate).target_temperature = *target_temperature;
+          }
+          id(uneva_climate).publish_state();
+      - script.execute: send_tcl_command
+
+# ==========================================
+# قائمة اختيار وضع المولد (Gen Mode)
+# ==========================================
 select:
   - platform: template
     name: "وضع المولد (Gen Mode)"
@@ -55,14 +126,21 @@ select:
     set_action:
       then:
         - lambda: |-
-            auto ac = (TCLACCustom*) id(uneva_climate);
             if (x == "إيقاف (Off)") {
-              ac->set_gen_mode(0x00);
+              id(gen_mode_val) = 0x00;
             } else if (x == "المستوى 1 (L1 - 2A)") {
-              ac->set_gen_mode(0x43);
+              id(gen_mode_val) = 0x43;
             } else if (x == "المستوى 2 (L2 - 4A)") {
-              ac->set_gen_mode(0x49);
+              id(gen_mode_val) = 0x49;
             } else if (x == "المستوى 3 (L3 - 5A)") {
-              ac->set_gen_mode(0x4D);
+              id(gen_mode_val) = 0x4D;
             }
-            
+        - script.execute: send_tcl_command
+
+# ==========================================
+# إعادة إرسال الحالة كل 10 ثوانٍ لثبات وضع المولد
+# ==========================================
+interval:
+  - interval: 10s
+    then:
+      - script.execute: send_tcl_command
