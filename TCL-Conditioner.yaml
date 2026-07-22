@@ -28,90 +28,80 @@ uart:
   baud_rate: 9600
 
 # ==========================================
-# المتغيرات العامة لثبات وضع المولد
+# 1. متغيرات النظام المحفوظة
 # ==========================================
 globals:
-  - id: gen_mode_val
+  - id: ac_mode_val
     type: uint8_t
-    initial_value: '0x00'
+    initial_value: '0x03' # تبريد افتراضي
+
+  - id: ac_temp_val
+    type: uint8_t
+    initial_value: '24' # 24 درجة افتراضي
+
+  - id: ac_gen_val
+    type: uint8_t
+    initial_value: '0x00' # إيقاف المولد افتراضي
 
 # ==========================================
-# سكربت بناء وإرسال الحزمة للمكيف عبر UART
+# 2. سكربت إرسال أمر UART الموحد للمكيف
 # ==========================================
 script:
   - id: send_tcl_command
     then:
       - lambda: |-
-          // 1. تحديد وضع التكييف
-          uint8_t mode_byte = 0x03; // Cool
-          auto current_mode = id(uneva_climate).mode;
-          if (current_mode == climate::CLIMATE_MODE_OFF) {
-            mode_byte = 0x00;
-          } else if (current_mode == climate::CLIMATE_MODE_COOL) {
-            mode_byte = 0x03;
-          } else if (current_mode == climate::CLIMATE_MODE_HEAT) {
-            mode_byte = 0x01;
-          } else if (current_mode == climate::CLIMATE_MODE_FAN_ONLY) {
-            mode_byte = 0x07;
-          } else if (current_mode == climate::CLIMATE_MODE_DRY) {
-            mode_byte = 0x02;
-          }
-
-          // 2. تحديد درجة الحرارة المطلوبة
-          uint8_t target_temp = (uint8_t)id(uneva_climate).target_temperature;
-          if (target_temp < 16) target_temp = 16;
-          if (target_temp > 31) target_temp = 31;
-
-          // 3. بناء حزمة TCL (38 بايت)
           uint8_t cmd[38] = {
             0xBB, 0x00, 0x01, 0x03, 0x20, 0x03, 0x01, 0x64,
-            0x03, mode_byte, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+            0x03, id(ac_mode_val), 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x0D, target_temp, id(gen_mode_val), 0x00, 0x00, 0x00
+            0x0D, id(ac_temp_val), id(ac_gen_val), 0x00, 0x00, 0x00
           };
 
-          // 4. حساب Checksum من البايت 3 إلى 36
+          // حساب Checksum لبروتوكول TCL من البايت 3 إلى 36
           uint8_t sum = 0;
           for (int i = 3; i < 37; i++) {
             sum += cmd[i];
           }
           cmd[37] = sum;
 
-          // 5. إرسال الحزمة للمكيف
+          // إرسال الحزمة للمكيف
           id(tcl_uart).write_array(cmd, 38);
 
 # ==========================================
-# واجهة التكييف الرسمية (Template Climate)
-# ==========================================
-climate:
-  - platform: template
-    name: "${humanly_name}"
-    id: uneva_climate
-    modes:
-      - "OFF"
-      - "COOL"
-      - "HEAT"
-      - "DRY"
-      - "FAN_ONLY"
-    min_temperature: 16
-    max_temperature: 31
-    target_temperature_step: 1
-    control_action:
-      - lambda: |-
-          if (mode.has_value()) {
-            id(uneva_climate).mode = *mode;
-          }
-          if (target_temperature.has_value()) {
-            id(uneva_climate).target_temperature = *target_temperature;
-          }
-          id(uneva_climate).publish_state();
-      - script.execute: send_tcl_command
-
-# ==========================================
-# قائمة اختيار وضع المولد (Gen Mode)
+# 3. القوائم المباشرة للتحكم (Select & Number)
 # ==========================================
 select:
+  # وضع المكيف الرئيسي
+  - platform: template
+    name: "وضع المكيف (AC Mode)"
+    id: ac_mode_selector
+    icon: "mdi:air-conditioner"
+    options:
+      - "تبريد (Cool)"
+      - "إيقاف (Off)"
+      - "تدفئة (Heat)"
+      - "مروحة (Fan)"
+      - "تجفيف (Dry)"
+    initial_option: "تبريد (Cool)"
+    optimistic: true
+    set_action:
+      then:
+        - lambda: |-
+            if (x == "إيقاف (Off)") {
+              id(ac_mode_val) = 0x00;
+            } else if (x == "تبريد (Cool)") {
+              id(ac_mode_val) = 0x03;
+            } else if (x == "تدفئة (Heat)") {
+              id(ac_mode_val) = 0x01;
+            } else if (x == "مروحة (Fan)") {
+              id(ac_mode_val) = 0x07;
+            } else if (x == "تجفيف (Dry)") {
+              id(ac_mode_val) = 0x02;
+            }
+        - script.execute: send_tcl_command
+
+  # وضع المولد
   - platform: template
     name: "وضع المولد (Gen Mode)"
     id: gen_mode_selector
@@ -122,25 +112,44 @@ select:
       - "المستوى 1 (L1 - 2A)"
       - "المستوى 2 (L2 - 4A)"
       - "المستوى 3 (L3 - 5A)"
+    initial_option: "إيقاف (Off)"
     optimistic: true
     set_action:
       then:
         - lambda: |-
             if (x == "إيقاف (Off)") {
-              id(gen_mode_val) = 0x00;
+              id(ac_gen_val) = 0x00;
             } else if (x == "المستوى 1 (L1 - 2A)") {
-              id(gen_mode_val) = 0x43;
+              id(ac_gen_val) = 0x43;
             } else if (x == "المستوى 2 (L2 - 4A)") {
-              id(gen_mode_val) = 0x49;
+              id(ac_gen_val) = 0x49;
             } else if (x == "المستوى 3 (L3 - 5A)") {
-              id(gen_mode_val) = 0x4D;
+              id(ac_gen_val) = 0x4D;
             }
         - script.execute: send_tcl_command
 
+# درجة الحرارة (16 - 31)
+number:
+  - platform: template
+    name: "درجة الحرارة (Temperature)"
+    id: ac_temp_number
+    icon: "mdi:thermometer"
+    min_value: 16
+    max_value: 31
+    step: 1
+    initial_value: 24
+    optimistic: true
+    set_action:
+      then:
+        - lambda: |-
+            id(ac_temp_val) = (uint8_t)x;
+        - script.execute: send_tcl_command
+
 # ==========================================
-# إعادة إرسال الحالة كل 10 ثوانٍ لثبات وضع المولد
+# 4. إعادة إرسال الحالة كل 10 ثوانٍ لثبات الأمر
 # ==========================================
 interval:
   - interval: 10s
     then:
       - script.execute: send_tcl_command
+      
