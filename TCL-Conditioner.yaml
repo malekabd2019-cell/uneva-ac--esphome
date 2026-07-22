@@ -18,6 +18,21 @@ esp32:
   framework:
     type: arduino
 
+# ==========================================
+# الاتصال بالشبكة والخدمات (مطلوبة لـ web_server)
+# ==========================================
+wifi:
+  ssid: ${wifi_ssid}
+  password: ${wifi_password}
+
+api:
+  encryption:
+    key: ${api_key}
+
+ota:
+  - platform: esphome
+    password: ${ota_pass}
+
 web_server:
   port: 80
 
