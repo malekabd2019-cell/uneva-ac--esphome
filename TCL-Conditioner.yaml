@@ -23,7 +23,7 @@ ota:
   - platform: esphome
     password: ${ota_pass}
 
-# 2. جلب الحزمة الأساسية الصحيحة فقط من المستودع
+# 2. الحزم الأساسية
 packages:
   remote_package:
     url: https://github.com/sorz2122/tclac.git
@@ -32,7 +32,7 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 3. وضع المولد (Generator Mode)
+# 3. برمجة وضع المولد (Generator Mode) بناءً على كود الاختبار الناجح
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -46,17 +46,37 @@ select:
     initial_option: "Off"
     optimistic: true
     set_action:
-      - logger.log: "تم تغيير مستوى المولد"
+      - lambda: |-
+          uint8_t genLevel = 0;
+          if (x == "Level 1") genLevel = 1;
+          else if (x == "Level 2") genLevel = 2;
+          else if (x == "Level 3") genLevel = 3;
 
-# 4. مفتاح الوضع الصحي (Health Mode)
-switch:
-  - platform: template
-    name: "الوضع الصحي (Health)"
-    id: health_switch
-    icon: "mdi:leaf"
-    optimistic: true
-    turn_on_action:
-      - logger.log: "تفعيل الوضع الصحي"
-    turn_off_action:
-      - logger.log: "إيقاف الوضع الصحي"
-      
+          // بناء حزمة الـ 38 بايت المعتمدة
+          uint8_t dataTX[38] = {0};
+          dataTX[0] = 0xBB;
+          dataTX[1] = 0x00;
+          dataTX[2] = 0x01;
+          dataTX[3] = 0x03;
+          dataTX[4] = 0x20;
+          dataTX[5] = 0x03;
+          dataTX[6] = 0x01;
+          dataTX[7] = 0x64;
+          dataTX[8] = 0x03;
+          dataTX[9] = 31 - 20; // 11
+          dataTX[10] = 0x00;
+          dataTX[13] = 0x01;
+
+          // الخانة 18 الخاصة بمستوى المولد
+          dataTX[18] = genLevel;
+
+          // حساب XOR Checksum
+          uint8_t crc = 0;
+          for (int i = 0; i < 37; i++) {
+            crc ^= dataTX[i];
+          }
+          dataTX[37] = crc;
+
+          // إرسال الحزمة المباشرة عبر المنفذ التسلسلي
+          id(uart_bus).write_array(dataTX, 38);
+          
