@@ -18,12 +18,19 @@ esphome:
 esp8266:
   board: esp01_1m
 
-# 1. التحديث اللاسلكي (OTA)
+# 1. تعريف منفذ الـ UART وإعطاؤه ID صريح (uart_bus)
+uart:
+  id: uart_bus
+  rx_pin: ${uart_rx}
+  tx_pin: ${uart_tx}
+  baud_rate: 9600
+
+# 2. التحديث اللاسلكي (OTA)
 ota:
   - platform: esphome
     password: ${ota_pass}
 
-# 2. الحزم الأساسية
+# 3. الحزم الأساسية
 packages:
   remote_package:
     url: https://github.com/sorz2122/tclac.git
@@ -32,7 +39,7 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 3. برمجة وضع المولد (Generator Mode) بناءً على كود الاختبار الناجح
+# 4. برمجة وضع المولد (Generator Mode)
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -63,7 +70,7 @@ select:
           dataTX[6] = 0x01;
           dataTX[7] = 0x64;
           dataTX[8] = 0x03;
-          dataTX[9] = 31 - 20; // 11
+          dataTX[9] = 31 - 20;
           dataTX[10] = 0x00;
           dataTX[13] = 0x01;
 
@@ -77,6 +84,6 @@ select:
           }
           dataTX[37] = crc;
 
-          // إرسال الحزمة المباشرة عبر المنفذ التسلسلي
+          // إرسال الحزمة عبر المنفذ التسلسلي المعرّف
           id(uart_bus).write_array(dataTX, 38);
           
