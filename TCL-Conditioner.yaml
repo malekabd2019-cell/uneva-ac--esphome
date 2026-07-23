@@ -14,92 +14,17 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${humanly_name}
-  # دمج مكتبة C++ مخصصة للتحكم في حزم السيريال مباشرة
-  includes:
-    - header_includes: |-
-        #include "esphome.h"
-
-        class TCLGenController {
-         public:
-          static uint8_t active_gen_level;
-          static float last_target_temp;
-          static uint8_t last_mode;
-          static uint8_t last_fan;
-
-          // بناء وإرسال حزمة السيريال المكتملة بدون تكرار
-          static void send_command(esphome::uart::UARTComponent *uart_bus, uint8_t gen_level) {
-            active_gen_level = gen_level;
-
-            uint8_t currentTemp = 24;
-            uint8_t acModeByte = 0x03; 
-            uint8_t fanSpeedByte = 0x64; 
-
-            if (!esphome::App.get_climates().empty()) {
-              auto *ac = esphome::App.get_climates()[0];
-              
-              if (!std::isnan(ac->target_temperature)) {
-                currentTemp = (uint8_t) ac->target_temperature;
-              }
-
-              switch (ac->mode) {
-                case esphome::climate::CLIMATE_MODE_COOL:     acModeByte = 0x03; break;
-                case esphome::climate::CLIMATE_MODE_HEAT:     acModeByte = 0x04; break;
-                case esphome::climate::CLIMATE_MODE_DRY:      acModeByte = 0x02; break;
-                case esphome::climate::CLIMATE_MODE_FAN_ONLY: acModeByte = 0x01; break;
-                default: acModeByte = 0x03; break;
-              }
-
-              if (ac->fan_mode.has_value()) {
-                switch (ac->fan_mode.value()) {
-                  case esphome::climate::CLIMATE_FAN_LOW:    fanSpeedByte = 0x20; break;
-                  case esphome::climate::CLIMATE_FAN_MEDIUM: fanSpeedByte = 0x40; break;
-                  case esphome::climate::CLIMATE_FAN_HIGH:   fanSpeedByte = 0x60; break;
-                  case esphome::climate::CLIMATE_FAN_AUTO:   fanSpeedByte = 0x64; break;
-                  default: fanSpeedByte = 0x64; break;
-                }
-              }
-            }
-
-            if (currentTemp < 16) currentTemp = 16;
-            if (currentTemp > 30) currentTemp = 30;
-
-            uint8_t dataTX[38] = {0};
-            dataTX[0] = 0xBB;
-            dataTX[1] = 0x00;
-            dataTX[2] = 0x01;
-            dataTX[3] = 0x03;
-            dataTX[4] = 0x20;
-            dataTX[5] = 0x03;
-            dataTX[6] = 0x01;
-            dataTX[7] = fanSpeedByte;   
-            dataTX[8] = acModeByte;     
-            dataTX[9] = 31 - currentTemp; 
-            dataTX[10] = 0x00;
-            dataTX[13] = 0x01;
-            dataTX[18] = active_gen_level;      
-
-            uint8_t crc = 0;
-            for (int i = 0; i < 37; i++) {
-              crc ^= dataTX[i];
-            }
-            dataTX[37] = crc;
-
-            uart_bus->write_array(dataTX, 38);
-          }
-        };
-
-        uint8_t TCLGenController::active_gen_level = 0;
-        float TCLGenController::last_target_temp = -1.0;
-        uint8_t TCLGenController::last_mode = 0;
-        uint8_t TCLGenController::last_fan = 0;
-
-  # مراقب أذكى: يكتشف تغيير المستخدم الحقيقي فقط ويرسل الأمر مرة واحدة
+  # مراقب أذكى داخل الـ lambda يمنع تكرار الصوت ويمنع أخطاء التجميع
   on_boot:
     priority: -100
     then:
       - lambda: |-
           if (!App.get_climates().empty()) {
             App.get_climates()[0]->add_on_state_callback([](auto &) {
+              static float last_target_temp = -1.0;
+              static uint8_t last_mode = 255;
+              static uint8_t last_fan = 255;
+
               auto *ac = App.get_climates()[0];
               if (std::isnan(ac->target_temperature)) return;
 
@@ -107,26 +32,24 @@ esphome:
               uint8_t current_mode = (uint8_t) ac->mode;
               uint8_t current_fan = ac->fan_mode.has_value() ? (uint8_t) ac->fan_mode.value() : 0;
 
-              // الفحص: إذا كانت هذه أول قراءة بعد الإقلاع، نحفظ الحالات فقط
-              if (TCLGenController::last_target_temp == -1.0) {
-                TCLGenController::last_target_temp = current_temp;
-                TCLGenController::last_mode = current_mode;
-                TCLGenController::last_fan = current_fan;
+              // القراءة الأولى عند إقلاع ESP32
+              if (last_target_temp == -1.0) {
+                last_target_temp = current_temp;
+                last_mode = current_mode;
+                last_fan = current_fan;
                 return;
               }
 
-              // إذا غير المستخدم الحرارة أو الوضع وكان وضع المولد مفعلاً
-              if ((current_temp != TCLGenController::last_target_temp || current_mode != TCLGenController::last_mode || current_fan != TCLGenController::last_fan) && TCLGenController::active_gen_level > 0) {
-                TCLGenController::last_target_temp = current_temp;
-                TCLGenController::last_mode = current_mode;
-                TCLGenController::last_fan = current_fan;
+              // يتم تنفيذ الإرسال فقط إذا غير المستخدم الحرارة أو الوضع فعلياً وكان وضع المولد مفعلاً
+              if ((current_temp != last_target_temp || current_mode != last_mode || current_fan != last_fan)) {
+                last_target_temp = current_temp;
+                last_mode = current_mode;
+                last_fan = current_fan;
 
-                // إرسال الحزمة المحدثة مرة واحدة فقط
-                TCLGenController::send_command(id(uart_bus), TCLGenController::active_gen_level);
-              } else {
-                TCLGenController::last_target_temp = current_temp;
-                TCLGenController::last_mode = current_mode;
-                TCLGenController::last_fan = current_fan;
+                std::string genState = id(generator_mode_select).state;
+                if (genState != "Off") {
+                  id(generator_mode_select).make_call().set_option(genState).perform();
+                }
               }
             });
           }
@@ -165,7 +88,7 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 5. الحساسات التقديرية (تحديث كل ثانية بدون إرسال سيريال)
+# 5. الحساسات التقديرية (فولت، واط، أمبير، استهلاك اليوم)
 sensor:
   - platform: template
     name: "فولتية الكهرباء (تقديري)"
@@ -222,7 +145,7 @@ sensor:
       - multiply: 0.001
     unit_of_measurement: "kWh"
 
-# 6. قائمة وضع المولد المربوطة بمتحكم C++ المباشر
+# 6. قائمة وضع المولد الديناميكية الشاملة
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -242,6 +165,59 @@ select:
           else if (x == "Level 2") genLevel = 2;
           else if (x == "Level 3") genLevel = 3;
 
-          // استدعاء دالة الإرسال من مكتبة C++ المباشرة
-          TCLGenController::send_command(id(uart_bus), genLevel);
+          uint8_t currentTemp = 24;
+          uint8_t acModeByte = 0x03; 
+          uint8_t fanSpeedByte = 0x64; 
+
+          if (!App.get_climates().empty()) {
+            auto *ac = App.get_climates()[0];
+            
+            if (!std::isnan(ac->target_temperature)) {
+              currentTemp = (uint8_t) ac->target_temperature;
+            }
+
+            switch (ac->mode) {
+              case climate::CLIMATE_MODE_COOL:     acModeByte = 0x03; break;
+              case climate::CLIMATE_MODE_HEAT:     acModeByte = 0x04; break;
+              case climate::CLIMATE_MODE_DRY:      acModeByte = 0x02; break;
+              case climate::CLIMATE_MODE_FAN_ONLY: acModeByte = 0x01; break;
+              default: acModeByte = 0x03; break;
+            }
+
+            if (ac->fan_mode.has_value()) {
+              switch (ac->fan_mode.value()) {
+                case climate::CLIMATE_FAN_LOW:    fanSpeedByte = 0x20; break;
+                case climate::CLIMATE_FAN_MEDIUM: fanSpeedByte = 0x40; break;
+                case climate::CLIMATE_FAN_HIGH:   fanSpeedByte = 0x60; break;
+                case climate::CLIMATE_FAN_AUTO:   fanSpeedByte = 0x64; break;
+                default: fanSpeedByte = 0x64; break;
+              }
+            }
+          }
+
+          if (currentTemp < 16) currentTemp = 16;
+          if (currentTemp > 30) currentTemp = 30;
+
+          uint8_t dataTX[38] = {0};
+          dataTX[0] = 0xBB;
+          dataTX[1] = 0x00;
+          dataTX[2] = 0x01;
+          dataTX[3] = 0x03;
+          dataTX[4] = 0x20;
+          dataTX[5] = 0x03;
+          dataTX[6] = 0x01;
+          dataTX[7] = fanSpeedByte;   
+          dataTX[8] = acModeByte;     
+          dataTX[9] = 31 - currentTemp; 
+          dataTX[10] = 0x00;
+          dataTX[13] = 0x01;
+          dataTX[18] = genLevel;      
+
+          uint8_t crc = 0;
+          for (int i = 0; i < 37; i++) {
+            crc ^= dataTX[i];
+          }
+          dataTX[37] = crc;
+
+          id(uart_bus).write_array(dataTX, 38);
           
