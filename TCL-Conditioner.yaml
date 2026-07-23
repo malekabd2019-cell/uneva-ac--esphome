@@ -109,9 +109,8 @@ number:
     step: 1
     optimistic: true
     set_action:
-      - lambda: |-
-          id(ac_temp_val) = x;
-        - script.execute: send_ac_command
+      - lambda: 'id(ac_temp_val) = x;'
+      - script.execute: send_ac_command
 
 select:
   - platform: template
@@ -128,7 +127,7 @@ select:
           else if (x == "L1") id(ac_gen_val) = 0x01;
           else if (x == "L2") id(ac_gen_val) = 0x02;
           else if (x == "L3") id(ac_gen_val) = 0x03;
-        - script.execute: send_ac_command
+      - script.execute: send_ac_command
 
 switch:
   - platform: template
