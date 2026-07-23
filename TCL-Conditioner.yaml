@@ -6,19 +6,20 @@ substitutions:
   recovery_pass: mKSzmBdt7DAj
   ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
   api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
-  uart_rx: GPIO3
-  uart_tx: GPIO1
-  receive_led: GPIO6
-  transmit_led: GPIO4
+  uart_rx: GPIO16
+  uart_tx: GPIO17
 
 esphome:
   name: ${device_name}
   friendly_name: ${humanly_name}
 
-esp8266:
-  board: esp01_1m
+# إعداد الشريحة الصحيحة ESP32
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
 
-# 1. تعريف منفذ السيريال
+# 1. تعريف منفذ الـ UART
 uart:
   id: uart_bus
   rx_pin: ${uart_rx}
@@ -30,12 +31,7 @@ ota:
   - platform: esphome
     password: ${ota_pass}
 
-# 3. إجبار واجهة الويب على إظهار كافة الكيانات المعرفة
-web_server:
-  port: 80
-  version: 2
-
-# 4. الحزمة الأساسية للمكيف
+# 3. الحزمة الأساسية
 packages:
   remote_package:
     url: https://github.com/sorz2122/tclac.git
@@ -44,7 +40,7 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 5. وضع المولد المبرمج بشرائح الـ 38 بايت والـ Checksum
+# 4. برمجة وضع المولد المعتمدة على الـ 38 بايت
 select:
   - platform: template
     name: "وضع المولد (Generator)"
