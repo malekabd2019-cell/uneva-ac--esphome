@@ -18,19 +18,18 @@ esphome:
 esp8266:
   board: esp01_1m
 
-# 1. التحديث اللاسلكي (OTA) بالصيغة الحديثة
+# 1. التحديث اللاسلكي (OTA)
 ota:
   - platform: esphome
     password: ${ota_pass}
 
-# 2. الحزم الأساسية والشفرات الصحية من المكتبة
+# 2. جلب الحزمة الأساسية الصحيحة فقط من المستودع
 packages:
   remote_package:
     url: https://github.com/sorz2122/tclac.git
     ref: master
     files:
       - packages/core.yaml
-      - packages/health.yaml
     refresh: 30s
 
 # 3. وضع المولد (Generator Mode)
@@ -49,7 +48,7 @@ select:
     set_action:
       - logger.log: "تم تغيير مستوى المولد"
 
-# 4. زر الوضع الصحي (Health Mode)
+# 4. مفتاح الوضع الصحي (Health Mode)
 switch:
   - platform: template
     name: "الوضع الصحي (Health)"
