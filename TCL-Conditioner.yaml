@@ -1,4 +1,4 @@
-Substitutions:
+substitutions:
   device_name: uneva-ac
   humanly_name: Uneva Air Conditioner
   wifi_ssid: "TOTOLINK ND300"
@@ -18,9 +18,6 @@ esp32:
   framework:
     type: arduino
 
-# ==========================================
-# الاتصال بالشبكة والخدمات
-# ==========================================
 wifi:
   ssid: ${wifi_ssid}
   password: ${wifi_password}
@@ -45,33 +42,27 @@ uart:
   parity: EVEN
   stop_bits: 1
 
-# ==========================================
-# 1. متغيرات النظام المحفوظة
-# ==========================================
 globals:
   - id: ac_mode_val
     type: uint8_t
     restore_value: yes
-    initial_value: '0x03' # تبريد افتراضي
+    initial_value: '0x03'
 
   - id: ac_temp_val
     type: uint8_t
     restore_value: yes
-    initial_value: '24' # 24 درجة افتراضي
+    initial_value: '24'
 
   - id: ac_gen_val
     type: uint8_t
     restore_value: yes
-    initial_value: '0x00' # إيقاف المولد افتراضي
+    initial_value: '0x00'
 
   - id: eco_active_val
     type: bool
     restore_value: yes
-    initial_value: 'false' # وضع ECO معطل افتراضياً
+    initial_value: 'false'
 
-# ==========================================
-# 2. سكربت إرسال أمر UART الموحد للمكيف
-# ==========================================
 script:
   - id: send_ac_command
     then:
@@ -86,25 +77,19 @@ script:
           dataTX[5] = 0x03;
           dataTX[6] = 0x01;
           
-          # راية التشغيل ووضع ECO (0xE4 عند تفعيل ECO، أو 0x64 للوضع العادي)
           dataTX[7] = id(eco_active_val) ? 0xE4 : 0x64;
+          dataTX[8] = id(ac_mode_val);
           
-          dataTX[8] = id(ac_mode_val);                    # وضع التشغيل (تبريد)
-          
-          # إذا كان ECO مفعل يثبتها على 26، وإلا يستخدم الحرارة المختارة
           if (id(eco_active_val)) {
             dataTX[9] = 31 - 26;
           } else {
             dataTX[9] = 31 - id(ac_temp_val);
           }
           
-          dataTX[10] = 0x00;                              # مروحة أوتوماتيك
+          dataTX[10] = 0x00;
           dataTX[13] = 0x01;
-
-          # وضع المولد في الخانة المؤكدة Byte[18]
           dataTX[18] = id(ac_gen_val);
 
-          # حساب الـ Checksum بالـ XOR
           uint8_t crc = 0;
           for (int i = 0; i < 37; i++) {
             crc ^= dataTX[i];
@@ -116,9 +101,6 @@ script:
           
           ESP_LOGD("uneva_ac", "AC Command Sent Successfully");
 
-# ==========================================
-# 3. واجهة التحكم (عناصر Home Assistant و Web Server)
-# ==========================================
 number:
   - platform: template
     name: "Temperature"
