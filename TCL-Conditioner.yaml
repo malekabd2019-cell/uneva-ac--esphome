@@ -52,7 +52,7 @@ esphome:
                 id(ac_temp_val) = temp;
                 id(ac_gen_val) = gen;
 
-                // تحديث واجهات Home Assistant فوراً لتطابق الريموت
+                // تحديث الواجهة فوراً
                 id(power_switch).publish_state(power);
                 id(temp_number).publish_state(temp);
                 id(eco_switch).publish_state(eco);
@@ -97,7 +97,21 @@ uart:
   stop_bits: 1
 
 # ==========================================
-# 1. متغيرات النظام
+# 1. أزرار ومستشعرات النظام (إعادة التشغيل وحالة الاتصال)
+# ==========================================
+button:
+  - platform: restart
+    name: "Restart Controller"
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+  - platform: uptime
+    name: "Uptime"
+
+# ==========================================
+# 2. متغيرات النظام
 # ==========================================
 globals:
   - id: ac_power_on
@@ -121,7 +135,7 @@ globals:
     initial_value: 'false'
 
 # ==========================================
-# 2. سكربت إرسال أمر UART الموحد للمكيف
+# 3. سكربت إرسال أمر UART الموحد للمكيف
 # ==========================================
 script:
   - id: send_ac_command
@@ -138,12 +152,12 @@ script:
           dataTX[6] = 0x01;
           
           if (!id(ac_power_on)) {
-            dataTX[7] = 0x04; // إيقاف
+            dataTX[7] = 0x04;
           } else {
-            dataTX[7] = id(eco_active_val) ? 0xE4 : 0x64; // تشغيل عادي أو ECO
+            dataTX[7] = id(eco_active_val) ? 0xE4 : 0x64;
           }
           
-          dataTX[8] = 0x03; // Cool Mode
+          dataTX[8] = 0x03; // Cool Mode ثابت
           
           if (id(eco_active_val) && id(ac_power_on)) {
             dataTX[9] = 31 - 26;
@@ -165,7 +179,7 @@ script:
           id(tcl_uart)->flush();
 
 # ==========================================
-# 3. عناصر التحكم المستقرة في ESPHome
+# 4. عناصر التحكم
 # ==========================================
 switch:
   - platform: template
