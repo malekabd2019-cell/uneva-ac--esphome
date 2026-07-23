@@ -20,42 +20,12 @@ esp32:
   framework:
     type: arduino
 
-# 1. إعداد السيريال + مستمع القراءات القادمة من الريموت والمكيف مباشرة
+# 1. إعداد السيريال للمكيف
 uart:
   id: uart_bus
   rx_pin: ${uart_rx}
   tx_pin: ${uart_tx}
   baud_rate: 9600
-  on_data:
-    - lambda: |-
-        static std::vector<uint8_t> rx_buffer;
-        rx_buffer.insert(rx_buffer.end(), bytes.begin(), bytes.end());
-
-        // حماية الذاكرة من التضخم
-        if (rx_buffer.size() > 200) {
-          rx_buffer.clear();
-          return;
-        }
-
-        // قراءة حزم البيانات القادمة من المكيف عند استخدام الريموت
-        while (rx_buffer.size() >= 38) {
-          if (rx_buffer[0] == 0xBB) {
-            uint8_t genLevel = rx_buffer[18];
-            std::string real_state = "Off";
-            if (genLevel == 1) real_state = "Level 1";
-            else if (genLevel == 2) real_state = "Level 2";
-            else if (genLevel == 3) real_state = "Level 3";
-
-            // تحديث حالة الخيار في الهاتف تلقائياً بدون إعادة إرسال أوامر
-            if (id(generator_mode_select).state != real_state) {
-              id(generator_mode_select).publish_state(real_state);
-            }
-
-            rx_buffer.erase(rx_buffer.begin(), rx_buffer.begin() + 38);
-          } else {
-            rx_buffer.erase(rx_buffer.begin());
-          }
-        }
 
 # 2. التحديث اللاسلكي وخادم الويب المباشر
 ota:
@@ -136,7 +106,7 @@ sensor:
       - multiply: 0.001
     unit_of_measurement: "kWh"
 
-# 6. قائمة وضع المولد الديناميكية
+# 6. قائمة وضع المولد الديناميكية الشاملة
 select:
   - platform: template
     name: "وضع المولد (Generator)"
