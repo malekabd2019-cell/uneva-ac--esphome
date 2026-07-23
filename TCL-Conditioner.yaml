@@ -26,22 +26,18 @@ esphome:
             uint8_t b;
             id(tcl_uart)->read_byte(&b);
 
-            // التزامن مع بداية حزمة البيانات (0xBB)
             if (rx_idx == 0 && b != 0xBB) {
               continue;
             }
 
             rx_buf[rx_idx++] = b;
 
-            // عند اكتمال استلام 38 بايت
             if (rx_idx == 38) {
-              // حساب الـ Checksum للتحقق من صحة الحزمة
               uint8_t crc = 0;
               for (int i = 0; i < 37; i++) {
                 crc ^= rx_buf[i];
               }
 
-              // إذا كانت الحزمة سليمة ومقبولة
               if (crc == rx_buf[37]) {
                 bool power = (rx_buf[7] != 0x04);
                 bool eco = (rx_buf[7] == 0xE4);
@@ -51,32 +47,23 @@ esphome:
                 if (temp < 16) temp = 16;
                 if (temp > 30) temp = 30;
 
-                // 1. تحديث المتغيرات العامة
                 id(ac_power_on) = power;
                 id(eco_active_val) = eco;
                 id(ac_temp_val) = temp;
                 id(ac_gen_val) = gen;
 
-                // 2. تحديث واجهة المناخ (Climate) في Home Assistant
-                if (power) {
-                  id(uneva_climate).mode = climate::CLIMATE_MODE_COOL;
-                } else {
-                  id(uneva_climate).mode = climate::CLIMATE_MODE_OFF;
-                }
-                id(uneva_climate).target_temperature = temp;
-                id(uneva_climate).publish_state();
+                // تحديث واجهات Home Assistant فوراً لتطابق الريموت
+                id(power_switch).publish_state(power);
+                id(temp_number).publish_state(temp);
+                id(eco_switch).publish_state(eco);
 
-                // 3. تحديث قائمة وضع المولد (Select)
                 if (gen == 0) id(gen_select).publish_state("OFF");
                 else if (gen == 1) id(gen_select).publish_state("L1");
                 else if (gen == 2) id(gen_select).publish_state("L2");
                 else if (gen == 3) id(gen_select).publish_state("L3");
-
-                // 4. تحديث مفتاح وضع التوفير (Switch)
-                id(eco_switch).publish_state(eco);
               }
 
-              rx_idx = 0; // إعادة ضبط المؤشر لاستقبال الحزمة التالية
+              rx_idx = 0;
             }
           }
 
@@ -85,9 +72,6 @@ esp32:
   framework:
     type: arduino
 
-# ==========================================
-# الاتصال بالشبكة والخدمات
-# ==========================================
 wifi:
   ssid: ${wifi_ssid}
   password: ${wifi_password}
@@ -154,9 +138,9 @@ script:
           dataTX[6] = 0x01;
           
           if (!id(ac_power_on)) {
-            dataTX[7] = 0x04;
+            dataTX[7] = 0x04; // إيقاف
           } else {
-            dataTX[7] = id(eco_active_val) ? 0xE4 : 0x64;
+            dataTX[7] = id(eco_active_val) ? 0xE4 : 0x64; // تشغيل عادي أو ECO
           }
           
           dataTX[8] = 0x03; // Cool Mode
@@ -181,42 +165,49 @@ script:
           id(tcl_uart)->flush();
 
 # ==========================================
-# 3. واجهة المناخ الموحدة (Climate Entity)
+# 3. عناصر التحكم المستقرة في ESPHome
 # ==========================================
-climate:
+switch:
   - platform: template
-    name: "${humanly_name}"
-    id: uneva_climate
-    modes:
-      - "OFF"
-      - "COOL"
-    visual:
-      min_temperature: 16
-      max_temperature: 30
-      temperature_step: 1
-    control_action:
+    name: "Power"
+    id: power_switch
+    optimistic: true
+    turn_on_action:
       then:
-        - lambda: |-
-            if (x.get_mode().has_value()) {
-              auto mode = *x.get_mode();
-              if (mode == climate::CLIMATE_MODE_OFF) {
-                id(ac_power_on) = false;
-              } else if (mode == climate::CLIMATE_MODE_COOL) {
-                id(ac_power_on) = true;
-              }
-              id(uneva_climate).mode = mode;
-            }
-            if (x.get_target_temperature().has_value()) {
-              float temp = *x.get_target_temperature();
-              id(ac_temp_val) = (uint8_t)temp;
-              id(uneva_climate).target_temperature = temp;
-            }
-            id(uneva_climate).publish_state();
+        - lambda: 'id(ac_power_on) = true;'
+        - script.execute: send_ac_command
+    turn_off_action:
+      then:
+        - lambda: 'id(ac_power_on) = false;'
         - script.execute: send_ac_command
 
-# ==========================================
-# 4. خيارات وضع المولد و ECO
-# ==========================================
+  - platform: template
+    name: "ECO Mode"
+    id: eco_switch
+    optimistic: true
+    turn_on_action:
+      then:
+        - lambda: 'id(eco_active_val) = true;'
+        - script.execute: send_ac_command
+    turn_off_action:
+      then:
+        - lambda: 'id(eco_active_val) = false;'
+        - script.execute: send_ac_command
+
+number:
+  - platform: template
+    name: "Temperature"
+    id: temp_number
+    min_value: 16
+    max_value: 30
+    step: 1
+    optimistic: true
+    initial_value: 20
+    set_action:
+      then:
+        - lambda: 'id(ac_temp_val) = (uint8_t)x;'
+        - script.execute: send_ac_command
+
 select:
   - platform: template
     name: "Generator Mode (GEN)"
@@ -234,19 +225,5 @@ select:
             else if (x == "L1") id(ac_gen_val) = 1;
             else if (x == "L2") id(ac_gen_val) = 2;
             else if (x == "L3") id(ac_gen_val) = 3;
-        - script.execute: send_ac_command
-
-switch:
-  - platform: template
-    name: "ECO Mode"
-    id: eco_switch
-    optimistic: true
-    turn_on_action:
-      then:
-        - lambda: 'id(eco_active_val) = true;'
-        - script.execute: send_ac_command
-    turn_off_action:
-      then:
-        - lambda: 'id(eco_active_val) = false;'
         - script.execute: send_ac_command
         
