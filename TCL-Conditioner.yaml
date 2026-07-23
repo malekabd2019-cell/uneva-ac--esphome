@@ -18,7 +18,7 @@ esphome:
 esp8266:
   board: esp01_1m
 
-# 1. تعريف منفذ الـ UART وإعطاؤه ID صريح (uart_bus)
+# 1. تعريف منفذ السيريال
 uart:
   id: uart_bus
   rx_pin: ${uart_rx}
@@ -30,7 +30,12 @@ ota:
   - platform: esphome
     password: ${ota_pass}
 
-# 3. الحزم الأساسية
+# 3. إجبار واجهة الويب على إظهار كافة الكيانات المعرفة
+web_server:
+  port: 80
+  version: 2
+
+# 4. الحزمة الأساسية للمكيف
 packages:
   remote_package:
     url: https://github.com/sorz2122/tclac.git
@@ -39,7 +44,7 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 4. برمجة وضع المولد (Generator Mode)
+# 5. وضع المولد المبرمج بشرائح الـ 38 بايت والـ Checksum
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -59,7 +64,7 @@ select:
           else if (x == "Level 2") genLevel = 2;
           else if (x == "Level 3") genLevel = 3;
 
-          // بناء حزمة الـ 38 بايت المعتمدة
+          // بناء حزمة الـ 38 بايت
           uint8_t dataTX[38] = {0};
           dataTX[0] = 0xBB;
           dataTX[1] = 0x00;
@@ -74,7 +79,7 @@ select:
           dataTX[10] = 0x00;
           dataTX[13] = 0x01;
 
-          // الخانة 18 الخاصة بمستوى المولد
+          // الخانة 18 لمستوى المولد
           dataTX[18] = genLevel;
 
           // حساب XOR Checksum
@@ -84,6 +89,6 @@ select:
           }
           dataTX[37] = crc;
 
-          // إرسال الحزمة عبر المنفذ التسلسلي المعرّف
+          // إرسال الحزمة
           id(uart_bus).write_array(dataTX, 38);
           
