@@ -41,7 +41,7 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 4. زر وضع المولد المحدث (يحافظ على درجة الحرارة الحالية)
+# 4. قائمة وضع المولد المحدثة (تستخرج الحرارة ديناميكياً بدون الاعتماد على ID)
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -61,10 +61,13 @@ select:
           else if (x == "Level 2") genLevel = 2;
           else if (x == "Level 3") genLevel = 3;
 
-          // قراءة الحرارة الحالية المحددة في كارت المكيف لعدم العودة لـ 20
+          // قراءة درجة الحرارة الحالية المحددة في واجهة المكيف مباشرة
           uint8_t currentTemp = 24; // قيمة افتراضية احتياطية
-          if (!std::isnan(id(tclac).target_temperature)) {
-            currentTemp = (uint8_t) id(tclac).target_temperature;
+          if (!App.get_climates().empty()) {
+            auto *ac = App.get_climates()[0];
+            if (!std::isnan(ac->target_temperature)) {
+              currentTemp = (uint8_t) ac->target_temperature;
+            }
           }
           if (currentTemp < 16) currentTemp = 16;
           if (currentTemp > 30) currentTemp = 30;
@@ -97,6 +100,6 @@ select:
           }
           dataTX[37] = crc;
 
-          // إرسال الحزمة
+          // إرسال الحزمة عبر السيريال
           id(uart_bus).write_array(dataTX, 38);
           
