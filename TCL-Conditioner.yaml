@@ -20,17 +20,20 @@ esp32:
   framework:
     type: arduino
 
-# 1. إعداد السيريال
+# 1. إعداد السيريال للمكيف
 uart:
   id: uart_bus
   rx_pin: ${uart_rx}
   tx_pin: ${uart_tx}
   baud_rate: 9600
 
-# 2. التحديث اللاسلكي
+# 2. التحديث اللاسلكي وخادم الويب المباشر
 ota:
   - platform: esphome
     password: ${ota_pass}
+
+web_server:
+  port: 80
 
 # 3. الحزمة الأساسية للمكيف
 packages:
@@ -41,7 +44,68 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 4. قائمة وضع المولد المحدثة (تستخرج الحرارة ديناميكياً بدون الاعتماد على ID)
+# 4. الحساسات التقديرية (فولت، واط، أمبير، استهلاك اليوم)
+sensor:
+  # أ) الفولت التقديري
+  - platform: template
+    name: "فولتية الكهرباء (تقديري)"
+    id: ac_voltage
+    unit_of_measurement: "V"
+    icon: "mdi:flash-outline"
+    accuracy_decimals: 0
+    lambda: |-
+      return 220.0;
+
+  # ب) القدرة بالواط بناءً على وضع المكيف والمولد
+  - platform: template
+    name: "قدرة المكيف (تقديري)"
+    id: ac_power
+    unit_of_measurement: "W"
+    icon: "mdi:gauge"
+    accuracy_decimals: 0
+    update_interval: 5s
+    lambda: |-
+      if (!App.get_climates().empty()) {
+        auto *ac = App.get_climates()[0];
+        if (ac->mode == climate::CLIMATE_MODE_OFF) {
+          return 5.0; 
+        }
+      } else {
+        return 0.0;
+      }
+
+      std::string genState = id(generator_mode_select).state;
+      if (genState == "Level 1") return 700.0;
+      if (genState == "Level 2") return 1100.0;
+      if (genState == "Level 3") return 1400.0;
+      
+      return 1800.0;
+
+  # جـ) الأمبير التقديري (الواط ÷ الفولت)
+  - platform: template
+    name: "أمبير المكيف (تقديري)"
+    id: ac_current
+    unit_of_measurement: "A"
+    icon: "mdi:current-ac"
+    accuracy_decimals: 1
+    update_interval: 5s
+    lambda: |-
+      if (id(ac_voltage).state > 0) {
+        return id(ac_power).state / id(ac_voltage).state;
+      }
+      return 0.0;
+
+  # د) استهلاك اليوم (كيلو واط) - يصفر تلقائياً كل منتصف ليل
+  - platform: total_daily_energy
+    name: "استهلاك اليوم (تقديري)"
+    id: ac_daily_energy
+    power_id: ac_power
+    icon: "mdi:calendar-today"
+    filters:
+      - multiply: 0.001
+    unit_of_measurement: "kWh"
+
+# 5. قائمة وضع المولد الديناميكية الشاملة (الحرارة + المروحة + وضع التشغيل)
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -61,18 +125,39 @@ select:
           else if (x == "Level 2") genLevel = 2;
           else if (x == "Level 3") genLevel = 3;
 
-          // قراءة درجة الحرارة الحالية المحددة في واجهة المكيف مباشرة
-          uint8_t currentTemp = 24; // قيمة افتراضية احتياطية
+          uint8_t currentTemp = 24;
+          uint8_t acModeByte = 0x03; 
+          uint8_t fanSpeedByte = 0x64; 
+
           if (!App.get_climates().empty()) {
             auto *ac = App.get_climates()[0];
+            
             if (!std::isnan(ac->target_temperature)) {
               currentTemp = (uint8_t) ac->target_temperature;
             }
+
+            switch (ac->mode) {
+              case climate::CLIMATE_MODE_COOL:     acModeByte = 0x03; break;
+              case climate::CLIMATE_MODE_HEAT:     acModeByte = 0x04; break;
+              case climate::CLIMATE_MODE_DRY:      acModeByte = 0x02; break;
+              case climate::CLIMATE_MODE_FAN_ONLY: acModeByte = 0x01; break;
+              default: acModeByte = 0x03; break;
+            }
+
+            if (ac->fan_mode.has_value()) {
+              switch (ac->fan_mode.value()) {
+                case climate::CLIMATE_FAN_LOW:    fanSpeedByte = 0x20; break;
+                case climate::CLIMATE_FAN_MEDIUM: fanSpeedByte = 0x40; break;
+                case climate::CLIMATE_FAN_HIGH:   fanSpeedByte = 0x60; break;
+                case climate::CLIMATE_FAN_AUTO:   fanSpeedByte = 0x64; break;
+                default: fanSpeedByte = 0x64; break;
+              }
+            }
           }
+
           if (currentTemp < 16) currentTemp = 16;
           if (currentTemp > 30) currentTemp = 30;
 
-          // بناء حزمة الـ 38 بايت
           uint8_t dataTX[38] = {0};
           dataTX[0] = 0xBB;
           dataTX[1] = 0x00;
@@ -81,25 +166,18 @@ select:
           dataTX[4] = 0x20;
           dataTX[5] = 0x03;
           dataTX[6] = 0x01;
-          dataTX[7] = 0x64;
-          dataTX[8] = 0x03;
-          
-          // الخانة 9: الحرارة الديناميكية (31 - الحرارة الحالية)
-          dataTX[9] = 31 - currentTemp;
-          
+          dataTX[7] = fanSpeedByte;   
+          dataTX[8] = acModeByte;     
+          dataTX[9] = 31 - currentTemp; 
           dataTX[10] = 0x00;
           dataTX[13] = 0x01;
+          dataTX[18] = genLevel;      
 
-          // الخانة 18: مستوى المولد
-          dataTX[18] = genLevel;
-
-          // حساب الـ XOR Checksum
           uint8_t crc = 0;
           for (int i = 0; i < 37; i++) {
             crc ^= dataTX[i];
           }
           dataTX[37] = crc;
 
-          // إرسال الحزمة عبر السيريال
           id(uart_bus).write_array(dataTX, 38);
           
