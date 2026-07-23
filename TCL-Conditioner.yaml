@@ -7,22 +7,22 @@ esp32:
   framework:
     type: arduino
 
-# إعدادات شبكة الوايفاي الخاص بك
+# إعدادات شبكة الوايفاي
 wifi:
   ssid: "TOTOLINK ND300"
   password: "A777763945A"
 
-# الاتصال المباشر Native API لضمان استقرار الكروت
+# الاتصال المباشر Native API
 api:
 
 logger:
   level: DEBUG
 
-# 1. التحديث اللاسلكي (OTA) بالصيغة الحديثة المضمونة للظهور
+# 1. التحديث اللاسلكي (OTA) بالصيغة الحديثة
 ota:
   - platform: esphome
 
-# 2. إعدادات المنفذ التسلسلي (UART) للـ ESP32
+# 2. إعدادات المنفذ التسلسلي (UART)
 uart:
   id: ac_uart
   tx_pin: GPIO17
@@ -67,18 +67,21 @@ select:
     set_action:
       - script.execute: send_generator_cmd
 
-# 6. كارت المناخ (Climate) المستقر
+# 6. كارت المناخ (Climate) - تم تصحيح Platform إلى thermostat
 climate:
-  - platform: thermostatic
+  - platform: thermostat
     name: "مكيف Uneva"
     id: uneva_climate
     sensor: ac_temp_sensor
-    default_preset: Home
     min_heating_off_time: 0s
     min_cooling_off_time: 0s
     min_fan_mode_switching_time: 0s
+    cool_action:
+      - logger.log: "تفعيل التبريد"
+    idle_action:
+      - logger.log: "وضع الخمول"
 
-# حساس افتراضي لدرجة الحرارة لضمان عدم اختفاء كارت المناخ
+# حساس افتراضي لدرجة الحرارة لضمان استقرار الكارت
 sensor:
   - platform: template
     id: ac_temp_sensor
