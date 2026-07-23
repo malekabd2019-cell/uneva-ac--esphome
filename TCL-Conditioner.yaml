@@ -1,57 +1,39 @@
+substitutions:
+  device_name: tclac
+  humanly_name: TCL Air Conditioner
+  wifi_ssid: "TOTOLINK ND300"
+  wifi_password: "A777763945A"
+  recovery_pass: mKSzmBdt7DAj
+  ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
+  api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
+  uart_rx: GPIO3
+  uart_tx: GPIO1
+  receive_led: GPIO6
+  transmit_led: GPIO4
+
 esphome:
-  name: uneva-ac
-  friendly_name: "Uneva Air Conditioner"
+  name: ${device_name}
+  friendly_name: ${humanly_name}
 
-esp32:
-  board: esp32dev
-  framework:
-    type: arduino
+esp8266:
+  board: esp01_1m
 
-# إعدادات شبكة الوايفاي
-wifi:
-  ssid: "TOTOLINK ND300"
-  password: "A777763945A"
-
-# الاتصال المباشر Native API
-api:
-
-logger:
-  level: DEBUG
-
-# 1. التحديث اللاسلكي (OTA)
+# 1. التحديث اللاسلكي (OTA) بالصيغة الحديثة
 ota:
   - platform: esphome
+    password: ${ota_pass}
 
-# 2. إعدادات المنفذ التسلسلي (UART)
-uart:
-  id: ac_uart
-  tx_pin: GPIO17
-  rx_pin: GPIO16
-  baud_rate: 9600
+# 2. الحزم الأساسية والشفرات الصحية من المكتبة
+packages:
+  remote_package:
+    url: https://github.com/sorz2122/tclac.git
+    ref: master
+    files:
+      - packages/core.yaml
+      - packages/health.yaml
+    refresh: 30s
 
-# 3. الأزرار الأساسية وإعادة التشغيل
-button:
-  - platform: restart
-    name: "إعادة تشغيل ESP32"
-    id: restart_btn
-
-  - platform: safe_mode
-    name: "وضع الأمان (Safe Mode)"
-    id: safe_mode_btn
-
-# 4. مفتاح وضع التوفير (ECO Mode)
-switch:
-  - platform: template
-    name: "وضع التوفير (ECO)"
-    id: eco_switch
-    icon: "mdi:leaf"
-    optimistic: true
-    turn_on_action:
-      - script.execute: send_eco_cmd
-    turn_off_action:
-      - script.execute: send_eco_cmd
-
-# 5. تحديد مستوى وضع المولد (Generator Mode) - تم تصحيح initial_option
+# 3. وضع المولد (Generator Mode)
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -65,49 +47,17 @@ select:
     initial_option: "Off"
     optimistic: true
     set_action:
-      - script.execute: send_generator_cmd
-
-# 6. كارت المناخ (Climate)
-climate:
-  - platform: thermostat
-    name: "مكيف Uneva"
-    id: uneva_climate
-    sensor: ac_temp_sensor
-    min_heating_off_time: 0s
-    min_cooling_off_time: 0s
-    min_fan_mode_switching_time: 0s
-    cool_action:
-      - logger.log: "تفعيل التبريد"
-    idle_action:
-      - logger.log: "وضع الخمول"
-
-# حساس افتراضي لدرجة الحرارة لضمان استقرار الكارت
-sensor:
-  - platform: template
-    id: ac_temp_sensor
-    name: "قراءة الحرارة"
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-
-# 7. سكريبتات إرسال البيانات وحساب الشيكسـم (Checksum)
-script:
-  - id: send_uart_packet
-    parameters:
-      payload: std::vector<uint8_t>
-    then:
-      - lambda: |-
-          uint8_t checksum = 0;
-          for (auto byte : payload) {
-            checksum += byte;
-          }
-          id(ac_uart).write_array(payload);
-          id(ac_uart).write_byte(checksum);
-
-  - id: send_eco_cmd
-    then:
-      - logger.log: "تم تنفيذ أمر ECO"
-
-  - id: send_generator_cmd
-    then:
       - logger.log: "تم تغيير مستوى المولد"
+
+# 4. زر الوضع الصحي (Health Mode)
+switch:
+  - platform: template
+    name: "الوضع الصحي (Health)"
+    id: health_switch
+    icon: "mdi:leaf"
+    optimistic: true
+    turn_on_action:
+      - logger.log: "تفعيل الوضع الصحي"
+    turn_off_action:
+      - logger.log: "إيقاف الوضع الصحي"
       
