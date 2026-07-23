@@ -15,25 +15,24 @@ esphome:
   name: ${device_name}
   friendly_name: ${humanly_name}
 
-# ضبط الشريحة ESP32
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
-# 1. تعريف منفذ السيريال المباشر باسطوانة ID معرفة (uart_bus)
+# 1. إعداد السيريال
 uart:
   id: uart_bus
   rx_pin: ${uart_rx}
   tx_pin: ${uart_tx}
   baud_rate: 9600
 
-# 2. التحديث اللاسلكي (OTA)
+# 2. التحديث اللاسلكي
 ota:
   - platform: esphome
     password: ${ota_pass}
 
-# 3. الحزمة الأساسية للمكيف (تبني كارت المناخ التفاعلي تلقائياً)
+# 3. الحزمة الأساسية للمكيف
 packages:
   remote_package:
     url: https://github.com/sorz2122/tclac.git
@@ -42,7 +41,7 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 4. إضافة قائمة وضع المولد (Generator Mode) المبرمجة
+# 4. زر وضع المولد المحدث (يحافظ على درجة الحرارة الحالية)
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -62,7 +61,15 @@ select:
           else if (x == "Level 2") genLevel = 2;
           else if (x == "Level 3") genLevel = 3;
 
-          // بناء حزمة الـ 38 بايت المعتمدة لديكم
+          // قراءة الحرارة الحالية المحددة في كارت المكيف لعدم العودة لـ 20
+          uint8_t currentTemp = 24; // قيمة افتراضية احتياطية
+          if (!std::isnan(id(tclac).target_temperature)) {
+            currentTemp = (uint8_t) id(tclac).target_temperature;
+          }
+          if (currentTemp < 16) currentTemp = 16;
+          if (currentTemp > 30) currentTemp = 30;
+
+          // بناء حزمة الـ 38 بايت
           uint8_t dataTX[38] = {0};
           dataTX[0] = 0xBB;
           dataTX[1] = 0x00;
@@ -73,20 +80,23 @@ select:
           dataTX[6] = 0x01;
           dataTX[7] = 0x64;
           dataTX[8] = 0x03;
-          dataTX[9] = 31 - 20;
+          
+          // الخانة 9: الحرارة الديناميكية (31 - الحرارة الحالية)
+          dataTX[9] = 31 - currentTemp;
+          
           dataTX[10] = 0x00;
           dataTX[13] = 0x01;
 
-          // الخانة 18 الخاصة بمستوى المولد
+          // الخانة 18: مستوى المولد
           dataTX[18] = genLevel;
 
-          // حساب XOR Checksum
+          // حساب الـ XOR Checksum
           uint8_t crc = 0;
           for (int i = 0; i < 37; i++) {
             crc ^= dataTX[i];
           }
           dataTX[37] = crc;
 
-          // الإرسال عبر UART
+          // إرسال الحزمة
           id(uart_bus).write_array(dataTX, 38);
           
