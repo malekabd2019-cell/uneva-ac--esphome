@@ -18,7 +18,7 @@ api:
 logger:
   level: DEBUG
 
-# 1. التحديث اللاسلكي (OTA) بالصيغة الحديثة
+# 1. التحديث اللاسلكي (OTA)
 ota:
   - platform: esphome
 
@@ -51,7 +51,7 @@ switch:
     turn_off_action:
       - script.execute: send_eco_cmd
 
-# 5. تحديد مستوى وضع المولد (Generator Mode)
+# 5. تحديد مستوى وضع المولد (Generator Mode) - تم تصحيح initial_option
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -62,12 +62,12 @@ select:
       - "Level 1"
       - "Level 2"
       - "Level 3"
-    initial_value: "Off"
+    initial_option: "Off"
     optimistic: true
     set_action:
       - script.execute: send_generator_cmd
 
-# 6. كارت المناخ (Climate) - تم تصحيح Platform إلى thermostat
+# 6. كارت المناخ (Climate)
 climate:
   - platform: thermostat
     name: "مكيف Uneva"
