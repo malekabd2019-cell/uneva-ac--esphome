@@ -1,4 +1,4 @@
-Substitutions:
+substitutions:
   device_name: uneva-ac
   humanly_name: Uneva Air Conditioner
   wifi_ssid: "TOTOLINK ND300"
@@ -52,7 +52,7 @@ esphome:
                 id(ac_temp_val) = temp;
                 id(ac_gen_val) = gen;
 
-                // تحديث شاشة Home Assistant والويب فوراً لتطابق الريموت
+                // تحديث الشاشة والواجهات فوراً لتطابق الريموت
                 id(power_switch).publish_state(power);
                 id(temp_number).publish_state(temp);
                 id(eco_switch).publish_state(eco);
@@ -157,7 +157,7 @@ script:
           dataTX[10] = 0x00;
           dataTX[13] = 0x01;
           
-          // الخانة المؤكدة لمستويات المولد
+          // الخانة المؤكدة لوضع المولد
           dataTX[18] = id(ac_gen_val);
 
           // حساب الـ Checksum بـ XOR
@@ -234,7 +234,7 @@ select:
         - script.execute: send_ac_command
 
 # ==========================================
-# 4. أزرار ومستشعرات النظام (معزولة بالأسفل)
+# 4. أزرار ومستشعرات النظام (معزولة في الأسفل)
 # ==========================================
 button:
   - platform: restart
