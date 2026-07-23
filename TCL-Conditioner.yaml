@@ -1,4 +1,4 @@
-substitutions:
+Substitutions:
   device_name: uneva-ac
   humanly_name: Uneva Air Conditioner
   wifi_ssid: "TOTOLINK ND300"
@@ -14,7 +14,7 @@ esphome:
   friendly_name: ${humanly_name}
   
   # ==========================================
-  # الاستماع الدائم للبيانات المرتجعة من الريموت/المكيف
+  # الاستماع الدائم للبيانات المرتجعة من الريموت/المكيف (RX)
   # ==========================================
   on_loop:
     then:
@@ -52,7 +52,7 @@ esphome:
                 id(ac_temp_val) = temp;
                 id(ac_gen_val) = gen;
 
-                // تحديث الواجهة فوراً
+                // تحديث شاشة Home Assistant والويب فوراً لتطابق الريموت
                 id(power_switch).publish_state(power);
                 id(temp_number).publish_state(temp);
                 id(eco_switch).publish_state(eco);
@@ -72,6 +72,9 @@ esp32:
   framework:
     type: arduino
 
+# ==========================================
+# الاتصال بالشبكة والخدمات
+# ==========================================
 wifi:
   ssid: ${wifi_ssid}
   password: ${wifi_password}
@@ -97,21 +100,7 @@ uart:
   stop_bits: 1
 
 # ==========================================
-# 1. أزرار ومستشعرات النظام (إعادة التشغيل وحالة الاتصال)
-# ==========================================
-button:
-  - platform: restart
-    name: "Restart Controller"
-
-sensor:
-  - platform: wifi_signal
-    name: "WiFi Signal"
-    update_interval: 60s
-  - platform: uptime
-    name: "Uptime"
-
-# ==========================================
-# 2. متغيرات النظام
+# 1. متغيرات النظام
 # ==========================================
 globals:
   - id: ac_power_on
@@ -135,7 +124,7 @@ globals:
     initial_value: 'false'
 
 # ==========================================
-# 3. سكربت إرسال أمر UART الموحد للمكيف
+# 2. سكربت إرسال أمر UART الموحد للمكيف
 # ==========================================
 script:
   - id: send_ac_command
@@ -152,12 +141,12 @@ script:
           dataTX[6] = 0x01;
           
           if (!id(ac_power_on)) {
-            dataTX[7] = 0x04;
+            dataTX[7] = 0x04; // إيقاف المكيف
           } else {
-            dataTX[7] = id(eco_active_val) ? 0xE4 : 0x64;
+            dataTX[7] = id(eco_active_val) ? 0xE4 : 0x64; // تشغيل عادي أو ECO
           }
           
-          dataTX[8] = 0x03; // Cool Mode ثابت
+          dataTX[8] = 0x03; // Cool Mode
           
           if (id(eco_active_val) && id(ac_power_on)) {
             dataTX[9] = 31 - 26;
@@ -167,8 +156,11 @@ script:
           
           dataTX[10] = 0x00;
           dataTX[13] = 0x01;
+          
+          // الخانة المؤكدة لمستويات المولد
           dataTX[18] = id(ac_gen_val);
 
+          // حساب الـ Checksum بـ XOR
           uint8_t crc = 0;
           for (int i = 0; i < 37; i++) {
             crc ^= dataTX[i];
@@ -179,7 +171,7 @@ script:
           id(tcl_uart)->flush();
 
 # ==========================================
-# 4. عناصر التحكم
+# 3. عناصر التحكم الرئيسية (مرتبة في الأعلى)
 # ==========================================
 switch:
   - platform: template
@@ -240,4 +232,21 @@ select:
             else if (x == "L2") id(ac_gen_val) = 2;
             else if (x == "L3") id(ac_gen_val) = 3;
         - script.execute: send_ac_command
-        
+
+# ==========================================
+# 4. أزرار ومستشعرات النظام (معزولة بالأسفل)
+# ==========================================
+button:
+  - platform: restart
+    name: "Restart Controller"
+    entity_category: config
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: diagnostic
+  - platform: uptime
+    name: "Uptime"
+    entity_category: diagnostic
+    
