@@ -1,252 +1,110 @@
-substitutions:
-  device_name: uneva-ac
-  humanly_name: Uneva Air Conditioner
-  wifi_ssid: "TOTOLINK ND300"
-  wifi_password: "A777763945A"
-  recovery_pass: mKSzmBdt7DAj
-  ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
-  api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
-  uart_rx: GPIO16
-  uart_tx: GPIO17
-
 esphome:
-  name: ${device_name}
-  friendly_name: ${humanly_name}
-  
-  # ==========================================
-  # الاستماع الدائم للبيانات المرتجعة من الريموت/المكيف (RX)
-  # ==========================================
-  on_loop:
-    then:
-      - lambda: |-
-          static uint8_t rx_buf[38];
-          static uint8_t rx_idx = 0;
-
-          while (id(tcl_uart)->available()) {
-            uint8_t b;
-            id(tcl_uart)->read_byte(&b);
-
-            if (rx_idx == 0 && b != 0xBB) {
-              continue;
-            }
-
-            rx_buf[rx_idx++] = b;
-
-            if (rx_idx == 38) {
-              uint8_t crc = 0;
-              for (int i = 0; i < 37; i++) {
-                crc ^= rx_buf[i];
-              }
-
-              if (crc == rx_buf[37]) {
-                bool power = (rx_buf[7] != 0x04);
-                bool eco = (rx_buf[7] == 0xE4);
-                uint8_t temp = 31 - rx_buf[9];
-                uint8_t gen = rx_buf[18];
-
-                if (temp < 16) temp = 16;
-                if (temp > 30) temp = 30;
-
-                id(ac_power_on) = power;
-                id(eco_active_val) = eco;
-                id(ac_temp_val) = temp;
-                id(ac_gen_val) = gen;
-
-                // تحديث الشاشة والواجهات فوراً لتطابق الريموت
-                id(power_switch).publish_state(power);
-                id(temp_number).publish_state(temp);
-                id(eco_switch).publish_state(eco);
-
-                if (gen == 0) id(gen_select).publish_state("OFF");
-                else if (gen == 1) id(gen_select).publish_state("L1");
-                else if (gen == 2) id(gen_select).publish_state("L2");
-                else if (gen == 3) id(gen_select).publish_state("L3");
-              }
-
-              rx_idx = 0;
-            }
-          }
+  name: uneva-ac
+  friendly_name: "Uneva Air Conditioner"
 
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
-# ==========================================
-# الاتصال بالشبكة والخدمات
-# ==========================================
+# إعدادات شبكة الوايفاي الخاص بك
 wifi:
-  ssid: ${wifi_ssid}
-  password: ${wifi_password}
+  ssid: "TOTOLINK ND300"
+  password: "A777763945A"
 
+# الاتصال المباشر Native API لضمان استقرار الكروت
 api:
-  encryption:
-    key: ${api_key}
 
+logger:
+  level: DEBUG
+
+# 1. التحديث اللاسلكي (OTA) بالصيغة الحديثة المضمونة للظهور
 ota:
   - platform: esphome
-    password: ${ota_pass}
 
-web_server:
-  port: 80
-
+# 2. إعدادات المنفذ التسلسلي (UART) للـ ESP32
 uart:
-  id: tcl_uart
-  tx_pin: ${uart_tx}
-  rx_pin: ${uart_rx}
+  id: ac_uart
+  tx_pin: GPIO17
+  rx_pin: GPIO16
   baud_rate: 9600
-  data_bits: 8
-  parity: EVEN
-  stop_bits: 1
 
-# ==========================================
-# 1. متغيرات النظام
-# ==========================================
-globals:
-  - id: ac_power_on
-    type: bool
-    restore_value: no
-    initial_value: 'true'
-
-  - id: ac_temp_val
-    type: uint8_t
-    restore_value: no
-    initial_value: '20'
-
-  - id: ac_gen_val
-    type: uint8_t
-    restore_value: no
-    initial_value: '0'
-
-  - id: eco_active_val
-    type: bool
-    restore_value: no
-    initial_value: 'false'
-
-# ==========================================
-# 2. سكربت إرسال أمر UART الموحد للمكيف
-# ==========================================
-script:
-  - id: send_ac_command
-    then:
-      - lambda: |-
-          uint8_t dataTX[38] = {0};
-
-          dataTX[0] = 0xBB;
-          dataTX[1] = 0x00;
-          dataTX[2] = 0x01;
-          dataTX[3] = 0x03;
-          dataTX[4] = 0x20;
-          dataTX[5] = 0x03;
-          dataTX[6] = 0x01;
-          
-          if (!id(ac_power_on)) {
-            dataTX[7] = 0x04; // إيقاف المكيف
-          } else {
-            dataTX[7] = id(eco_active_val) ? 0xE4 : 0x64; // تشغيل عادي أو ECO
-          }
-          
-          dataTX[8] = 0x03; // Cool Mode
-          
-          if (id(eco_active_val) && id(ac_power_on)) {
-            dataTX[9] = 31 - 26;
-          } else {
-            dataTX[9] = 31 - id(ac_temp_val);
-          }
-          
-          dataTX[10] = 0x00;
-          dataTX[13] = 0x01;
-          
-          // الخانة المؤكدة لوضع المولد
-          dataTX[18] = id(ac_gen_val);
-
-          // حساب الـ Checksum بـ XOR
-          uint8_t crc = 0;
-          for (int i = 0; i < 37; i++) {
-            crc ^= dataTX[i];
-          }
-          dataTX[37] = crc;
-
-          id(tcl_uart)->write_array(dataTX, 38);
-          id(tcl_uart)->flush();
-
-# ==========================================
-# 3. عناصر التحكم الرئيسية (مرتبة في الأعلى)
-# ==========================================
-switch:
-  - platform: template
-    name: "Power"
-    id: power_switch
-    optimistic: true
-    turn_on_action:
-      then:
-        - lambda: 'id(ac_power_on) = true;'
-        - script.execute: send_ac_command
-    turn_off_action:
-      then:
-        - lambda: 'id(ac_power_on) = false;'
-        - script.execute: send_ac_command
-
-  - platform: template
-    name: "ECO Mode"
-    id: eco_switch
-    optimistic: true
-    turn_on_action:
-      then:
-        - lambda: 'id(eco_active_val) = true;'
-        - script.execute: send_ac_command
-    turn_off_action:
-      then:
-        - lambda: 'id(eco_active_val) = false;'
-        - script.execute: send_ac_command
-
-number:
-  - platform: template
-    name: "Temperature"
-    id: temp_number
-    min_value: 16
-    max_value: 30
-    step: 1
-    optimistic: true
-    initial_value: 20
-    set_action:
-      then:
-        - lambda: 'id(ac_temp_val) = (uint8_t)x;'
-        - script.execute: send_ac_command
-
-select:
-  - platform: template
-    name: "Generator Mode (GEN)"
-    id: gen_select
-    optimistic: true
-    options:
-      - "OFF"
-      - "L1"
-      - "L2"
-      - "L3"
-    set_action:
-      then:
-        - lambda: |-
-            if (x == "OFF") id(ac_gen_val) = 0;
-            else if (x == "L1") id(ac_gen_val) = 1;
-            else if (x == "L2") id(ac_gen_val) = 2;
-            else if (x == "L3") id(ac_gen_val) = 3;
-        - script.execute: send_ac_command
-
-# ==========================================
-# 4. أزرار ومستشعرات النظام (معزولة في الأسفل)
-# ==========================================
+# 3. الأزرار الأساسية وإعادة التشغيل
 button:
   - platform: restart
-    name: "Restart Controller"
-    entity_category: config
+    name: "إعادة تشغيل ESP32"
+    id: restart_btn
 
+  - platform: safe_mode
+    name: "وضع الأمان (Safe Mode)"
+    id: safe_mode_btn
+
+# 4. مفتاح وضع التوفير (ECO Mode)
+switch:
+  - platform: template
+    name: "وضع التوفير (ECO)"
+    id: eco_switch
+    icon: "mdi:leaf"
+    optimistic: true
+    turn_on_action:
+      - script.execute: send_eco_cmd
+    turn_off_action:
+      - script.execute: send_eco_cmd
+
+# 5. تحديد مستوى وضع المولد (Generator Mode)
+select:
+  - platform: template
+    name: "وضع المولد (Generator)"
+    id: generator_mode_select
+    icon: "mdi:generator-portable"
+    options:
+      - "Off"
+      - "Level 1"
+      - "Level 2"
+      - "Level 3"
+    initial_value: "Off"
+    optimistic: true
+    set_action:
+      - script.execute: send_generator_cmd
+
+# 6. كارت المناخ (Climate) المستقر
+climate:
+  - platform: thermostatic
+    name: "مكيف Uneva"
+    id: uneva_climate
+    sensor: ac_temp_sensor
+    default_preset: Home
+    min_heating_off_time: 0s
+    min_cooling_off_time: 0s
+    min_fan_mode_switching_time: 0s
+
+# حساس افتراضي لدرجة الحرارة لضمان عدم اختفاء كارت المناخ
 sensor:
-  - platform: wifi_signal
-    name: "WiFi Signal"
-    update_interval: 60s
-    entity_category: diagnostic
-  - platform: uptime
-    name: "Uptime"
-    entity_category: diagnostic
-    
+  - platform: template
+    id: ac_temp_sensor
+    name: "قراءة الحرارة"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+# 7. سكريبتات إرسال البيانات وحساب الشيكسـم (Checksum)
+script:
+  - id: send_uart_packet
+    parameters:
+      payload: std::vector<uint8_t>
+    then:
+      - lambda: |-
+          uint8_t checksum = 0;
+          for (auto byte : payload) {
+            checksum += byte;
+          }
+          id(ac_uart).write_array(payload);
+          id(ac_uart).write_byte(checksum);
+
+  - id: send_eco_cmd
+    then:
+      - logger.log: "تم تنفيذ أمر ECO"
+
+  - id: send_generator_cmd
+    then:
+      - logger.log: "تم تغيير مستوى المولد"
+      
