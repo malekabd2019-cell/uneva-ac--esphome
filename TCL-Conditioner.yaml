@@ -14,57 +14,48 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${humanly_name}
-  # مراقب أذكى داخل الـ lambda يمنع تكرار الصوت ويمنع أخطاء التجميع
-  on_boot:
-    priority: -100
-    then:
-      - lambda: |-
-          if (!App.get_climates().empty()) {
-            App.get_climates()[0]->add_on_state_callback([](auto &) {
-              static float last_target_temp = -1.0;
-              static uint8_t last_mode = 255;
-              static uint8_t last_fan = 255;
-
-              auto *ac = App.get_climates()[0];
-              if (std::isnan(ac->target_temperature)) return;
-
-              float current_temp = ac->target_temperature;
-              uint8_t current_mode = (uint8_t) ac->mode;
-              uint8_t current_fan = ac->fan_mode.has_value() ? (uint8_t) ac->fan_mode.value() : 0;
-
-              // القراءة الأولى عند إقلاع ESP32
-              if (last_target_temp == -1.0) {
-                last_target_temp = current_temp;
-                last_mode = current_mode;
-                last_fan = current_fan;
-                return;
-              }
-
-              // يتم تنفيذ الإرسال فقط إذا غير المستخدم الحرارة أو الوضع فعلياً وكان وضع المولد مفعلاً
-              if ((current_temp != last_target_temp || current_mode != last_mode || current_fan != last_fan)) {
-                last_target_temp = current_temp;
-                last_mode = current_mode;
-                last_fan = current_fan;
-
-                std::string genState = id(generator_mode_select).state;
-                if (genState != "Off") {
-                  id(generator_mode_select).make_call().set_option(genState).perform();
-                }
-              }
-            });
-          }
 
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
-# 1. إعداد السيريال للمكيف
+# 1. إعداد السيريال + مستمع القراءات القادمة من الريموت والمكيف مباشرة
 uart:
   id: uart_bus
   rx_pin: ${uart_rx}
   tx_pin: ${uart_tx}
   baud_rate: 9600
+  on_data:
+    - lambda: |-
+        static std::vector<uint8_t> rx_buffer;
+        rx_buffer.insert(rx_buffer.end(), bytes.begin(), bytes.end());
+
+        // حماية الذاكرة من التضخم
+        if (rx_buffer.size() > 200) {
+          rx_buffer.clear();
+          return;
+        }
+
+        // قراءة حزم البيانات القادمة من المكيف عند استخدام الريموت
+        while (rx_buffer.size() >= 38) {
+          if (rx_buffer[0] == 0xBB) {
+            uint8_t genLevel = rx_buffer[18];
+            std::string real_state = "Off";
+            if (genLevel == 1) real_state = "Level 1";
+            else if (genLevel == 2) real_state = "Level 2";
+            else if (genLevel == 3) real_state = "Level 3";
+
+            // تحديث حالة الخيار في الهاتف تلقائياً بدون إعادة إرسال أوامر
+            if (id(generator_mode_select).state != real_state) {
+              id(generator_mode_select).publish_state(real_state);
+            }
+
+            rx_buffer.erase(rx_buffer.begin(), rx_buffer.begin() + 38);
+          } else {
+            rx_buffer.erase(rx_buffer.begin());
+          }
+        }
 
 # 2. التحديث اللاسلكي وخادم الويب المباشر
 ota:
@@ -145,7 +136,7 @@ sensor:
       - multiply: 0.001
     unit_of_measurement: "kWh"
 
-# 6. قائمة وضع المولد الديناميكية الشاملة
+# 6. قائمة وضع المولد الديناميكية
 select:
   - platform: template
     name: "وضع المولد (Generator)"
