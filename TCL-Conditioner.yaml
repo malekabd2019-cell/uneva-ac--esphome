@@ -1,51 +1,48 @@
-esphome:
-  name: uneva-ac
-  friendly_name: "Uneva Air Conditioner"
-  on_boot:
-    then:
-      - script.execute: send_ac_state
+substitutions:
+  device_name: tclac
+  humanly_name: TCL Air Conditioner
+  wifi_ssid: "TOTOLINK ND300"
+  wifi_password: "A777763945A"
+  recovery_pass: mKSzmBdt7DAj
+  ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
+  api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
+  uart_rx: GPIO16
+  uart_tx: GPIO17
+  receive_led: GPIO6
+  transmit_led: GPIO4
 
-# ضبط الشريحة الصحيحة ESP32
+esphome:
+  name: ${device_name}
+  friendly_name: ${humanly_name}
+
+# ضبط الشريحة ESP32
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
-# إعدادات الواي فاي
-wifi:
-  ssid: "TOTOLINK ND300"
-  password: "A777763945A"
+# 1. تعريف منفذ السيريال المباشر باسطوانة ID معرفة (uart_bus)
+uart:
+  id: uart_bus
+  rx_pin: ${uart_rx}
+  tx_pin: ${uart_tx}
+  baud_rate: 9600
 
-# الربط التلقائي مع Home Assistant والتحديث اللاسلكي
-api:
-
+# 2. التحديث اللاسلكي (OTA)
 ota:
   - platform: esphome
+    password: ${ota_pass}
 
-logger:
-  level: DEBUG
+# 3. الحزمة الأساسية للمكيف (تبني كارت المناخ التفاعلي تلقائياً)
+packages:
+  remote_package:
+    url: https://github.com/sorz2122/tclac.git
+    ref: master
+    files:
+      - packages/core.yaml
+    refresh: 30s
 
-# 1. إعدادات السيريال المطابقة لتجربتك الناجحة (SERIAL_8E1 على GPIO16 و GPIO17)
-uart:
-  id: ac_uart
-  tx_pin: GPIO17
-  rx_pin: GPIO16
-  baud_rate: 9600
-  parity: EVEN
-
-# 2. زر وضع التوفير (ECO Mode)
-switch:
-  - platform: template
-    name: "وضع التوفير (ECO)"
-    id: eco_switch
-    icon: "mdi:leaf"
-    optimistic: true
-    turn_on_action:
-      - script.execute: send_ac_state
-    turn_off_action:
-      - script.execute: send_ac_state
-
-# 3. قائمة اختيار وضع المولد (Generator Mode) المضافة لـ Home Assistant
+# 4. إضافة قائمة وضع المولد (Generator Mode) المبرمجة
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -59,39 +56,14 @@ select:
     initial_option: "Off"
     optimistic: true
     set_action:
-      - script.execute: send_ac_state
-
-# 4. كارت التحكم بالمكيف (Climate Entity)
-climate:
-  - platform: template
-    name: "مكيف Uneva"
-    id: uneva_climate
-    modes:
-      - "OFF"
-      - COOL
-    min_temperature: 16
-    max_temperature: 30
-    target_temperature_step: 1
-    current_temperature_sensor: ac_temp_sensor
-    set_action:
-      - script.execute: send_ac_state
-
-# حساس حرارة افتراضي لضمان استقرار الواجهة
-sensor:
-  - platform: template
-    id: ac_temp_sensor
-    name: "الحرارة"
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-
-# 5. السكريبت المركزي لإرسال الحزمة (38 بايت مع حساب الـ XOR Checksum)
-script:
-  - id: send_ac_state
-    then:
       - lambda: |-
-          uint8_t dataTX[38] = {0};
+          uint8_t genLevel = 0;
+          if (x == "Level 1") genLevel = 1;
+          else if (x == "Level 2") genLevel = 2;
+          else if (x == "Level 3") genLevel = 3;
 
-          // الهيدر والبيانات الثابتة
+          // بناء حزمة الـ 38 بايت المعتمدة لديكم
+          uint8_t dataTX[38] = {0};
           dataTX[0] = 0xBB;
           dataTX[1] = 0x00;
           dataTX[2] = 0x01;
@@ -99,49 +71,22 @@ script:
           dataTX[4] = 0x20;
           dataTX[5] = 0x03;
           dataTX[6] = 0x01;
-
-          // حالة الـ ECO
-          bool ecoActive = id(eco_switch).state;
-          dataTX[7] = ecoActive ? 0xE4 : 0x64;
-
-          dataTX[8] = 0x03; // وضع التبريد (Cool)
-
-          // قراءة درجة الحرارة الحالية وطرحها (31 - Temp)
-          uint8_t temp = 20;
-          if (id(uneva_climate).has_state()) {
-            temp = (uint8_t) id(uneva_climate).target_temperature;
-          }
-          if (temp < 16) temp = 16;
-          if (temp > 30) temp = 30;
-
-          if (ecoActive) {
-            dataTX[9] = 31 - 26; // تثبيت الحرارة عند 26 في وضع ECO
-          } else {
-            dataTX[9] = 31 - temp;
-          }
-
-          dataTX[10] = 0x00; // سرعة المروحة تلقائي
+          dataTX[7] = 0x64;
+          dataTX[8] = 0x03;
+          dataTX[9] = 31 - 20;
+          dataTX[10] = 0x00;
           dataTX[13] = 0x01;
 
-          // قراءة مستوى وضع المولد المحدد من القائمة
-          std::string genState = id(generator_mode_select).state;
-          uint8_t genLevel = 0;
-          if (genState == "Level 1") genLevel = 1;
-          else if (genState == "Level 2") genLevel = 2;
-          else if (genState == "Level 3") genLevel = 3;
-
-          // الخانة 18 الخاصة بالمولد
+          // الخانة 18 الخاصة بمستوى المولد
           dataTX[18] = genLevel;
 
-          // حساب الـ XOR Checksum في البايت 37
+          // حساب XOR Checksum
           uint8_t crc = 0;
           for (int i = 0; i < 37; i++) {
             crc ^= dataTX[i];
           }
           dataTX[37] = crc;
 
-          // الإرسال المباشر عبر UART
-          id(ac_uart).write_array(dataTX, 38);
-          ESP_LOGI("uneva_ac", "Sent Packet -> Temp: %d | Gen: L%d | ECO: %s", 
-                   ecoActive ? 26 : temp, genLevel, ecoActive ? "ON" : "OFF");
-                   
+          // الإرسال عبر UART
+          id(uart_bus).write_array(dataTX, 38);
+          
