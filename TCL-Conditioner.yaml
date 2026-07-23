@@ -14,62 +14,20 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${humanly_name}
-  # تضمين ملف C++ المحلي البرمجي
-  includes:
-    - tcl_generator.h
-  on_boot:
-    priority: 600
-    then:
-      - lambda: |-
-          // تهيئة مدير المولد العام
-          global_tcl_gen = new TCLGeneratorManager();
 
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
-# 1. إعداد السيريال + الاستماع لتحديثات الريموت اليدوي
+# 1. إعداد السيريال القياسي (بدون خيارات غير مدعومة)
 uart:
   id: uart_bus
   rx_pin: ${uart_rx}
   tx_pin: ${uart_tx}
   baud_rate: 9600
-  on_data:
-    - lambda: |-
-        static std::vector<uint8_t> rx_buffer;
-        rx_buffer.insert(rx_buffer.end(), bytes.begin(), bytes.end());
 
-        if (rx_buffer.size() > 200) {
-          rx_buffer.clear();
-          return;
-        }
-
-        while (rx_buffer.size() >= 38) {
-          if (rx_buffer[0] == 0xBB) {
-            uint8_t genLevel = rx_buffer[18];
-            
-            if (global_tcl_gen != nullptr) {
-              global_tcl_gen->current_generator_level = genLevel;
-            }
-
-            std::string real_state = "Off";
-            if (genLevel == 1) real_state = "Level 1";
-            else if (genLevel == 2) real_state = "Level 2";
-            else if (genLevel == 3) real_state = "Level 3";
-
-            // تحديث واجهة الهاتف تلقائياً عند الاستخدام من الريموت اليدوي
-            if (id(generator_mode_select).state != real_state) {
-              id(generator_mode_select).publish_state(real_state);
-            }
-
-            rx_buffer.erase(rx_buffer.begin(), rx_buffer.begin() + 38);
-          } else {
-            rx_buffer.erase(rx_buffer.begin());
-          }
-        }
-
-# 2. التحديث اللاسلكي وخادم الويب
+# 2. التحديث اللاسلكي وخادم الويب المباشر
 ota:
   - platform: esphome
     password: ${ota_pass}
@@ -77,7 +35,7 @@ ota:
 web_server:
   port: 80
 
-# 3. مزامنة الوقت
+# 3. مكون مزامنة الوقت
 time:
   - platform: homeassistant
     id: homeassistant_time
@@ -91,7 +49,7 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 5. الحساسات التقديرية
+# 5. الحساسات التقديرية (فولت، واط، أمبير، استهلاك اليوم)
 sensor:
   - platform: template
     name: "فولتية الكهرباء (تقديري)"
@@ -148,7 +106,7 @@ sensor:
       - multiply: 0.001
     unit_of_measurement: "kWh"
 
-# 6. قائمة وضع المولد المرتبطة بالنظام المدمج
+# 6. قائمة وضع المولد الشاملة
 select:
   - platform: template
     name: "وضع المولد (Generator)"
@@ -167,10 +125,6 @@ select:
           if (x == "Level 1") genLevel = 1;
           else if (x == "Level 2") genLevel = 2;
           else if (x == "Level 3") genLevel = 3;
-
-          if (global_tcl_gen != nullptr) {
-            global_tcl_gen->set_generator(genLevel);
-          }
 
           uint8_t currentTemp = 24;
           uint8_t acModeByte = 0x03; 
@@ -218,7 +172,7 @@ select:
           dataTX[9] = 31 - currentTemp; 
           dataTX[10] = 0x00;
           dataTX[13] = 0x01;
-          dataTX[18] = genLevel;      // الخانة 18: دمج المولد مباشرة
+          dataTX[18] = genLevel;      
 
           uint8_t crc = 0;
           for (int i = 0; i < 37; i++) {
