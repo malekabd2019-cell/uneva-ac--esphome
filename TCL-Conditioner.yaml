@@ -35,7 +35,12 @@ ota:
 web_server:
   port: 80
 
-# 3. الحزمة الأساسية للمكيف
+# 3. مكون مزامنة الوقت (مطلوب لحساب الاستهلاك اليومي)
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+# 4. الحزمة الأساسية للمكيف
 packages:
   remote_package:
     url: https://github.com/sorz2122/tclac.git
@@ -44,7 +49,7 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 4. الحساسات التقديرية (فولت، واط، أمبير، استهلاك اليوم)
+# 5. الحساسات التقديرية (فولت، واط، أمبير، استهلاك اليوم)
 sensor:
   # أ) الفولت التقديري
   - platform: template
@@ -105,7 +110,7 @@ sensor:
       - multiply: 0.001
     unit_of_measurement: "kWh"
 
-# 5. قائمة وضع المولد الديناميكية الشاملة (الحرارة + المروحة + وضع التشغيل)
+# 6. قائمة وضع المولد الديناميكية الشاملة
 select:
   - platform: template
     name: "وضع المولد (Generator)"
