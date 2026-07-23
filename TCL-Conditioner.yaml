@@ -35,7 +35,7 @@ ota:
 web_server:
   port: 80
 
-# 3. مكون مزامنة الوقت (مطلوب لحساب الاستهلاك اليومي)
+# 3. مكون مزامنة الوقت
 time:
   - platform: homeassistant
     id: homeassistant_time
@@ -49,9 +49,28 @@ packages:
       - packages/core.yaml
     refresh: 30s
 
-# 5. الحساسات التقديرية (فولت، واط، أمبير، استهلاك اليوم)
+# 5. مراقب تغيير الحرارة (للحفاظ على وضع المولد عند تغيير الحرارة)
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          static float last_target_temp = -1.0;
+          if (!App.get_climates().empty()) {
+            auto *ac = App.get_climates()[0];
+            if (!std::isnan(ac->target_temperature)) {
+              // إذا تغيرت الحرارة وكان وضع المولد مفعلاً، أعد إرسال حزمة المولد بالحرارة الجديدة
+              if (last_target_temp != -1.0 && ac->target_temperature != last_target_temp) {
+                std::string genState = id(generator_mode_select).state;
+                if (genState != "Off") {
+                  id(generator_mode_select).make_call().set_option(genState).perform();
+                }
+              }
+              last_target_temp = ac->target_temperature;
+            }
+          }
+
+# 6. الحساسات التقديرية
 sensor:
-  # أ) الفولت التقديري
   - platform: template
     name: "فولتية الكهرباء (تقديري)"
     id: ac_voltage
@@ -61,7 +80,6 @@ sensor:
     lambda: |-
       return 220.0;
 
-  # ب) القدرة بالواط بناءً على وضع المكيف والمولد
   - platform: template
     name: "قدرة المكيف (تقديري)"
     id: ac_power
@@ -86,7 +104,6 @@ sensor:
       
       return 1800.0;
 
-  # جـ) الأمبير التقديري (الواط ÷ الفولت)
   - platform: template
     name: "أمبير المكيف (تقديري)"
     id: ac_current
@@ -100,7 +117,6 @@ sensor:
       }
       return 0.0;
 
-  # د) استهلاك اليوم (كيلو واط) - يصفر تلقائياً كل منتصف ليل
   - platform: total_daily_energy
     name: "استهلاك اليوم (تقديري)"
     id: ac_daily_energy
@@ -110,7 +126,7 @@ sensor:
       - multiply: 0.001
     unit_of_measurement: "kWh"
 
-# 6. قائمة وضع المولد الديناميكية الشاملة
+# 7. قائمة وضع المولد الديناميكية الشاملة
 select:
   - platform: template
     name: "وضع المولد (Generator)"
