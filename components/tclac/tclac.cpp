@@ -15,7 +15,6 @@ namespace tclac{
 esphome::climate::ClimateTraits tclacClimate::traits() {
 	auto traits = climate::ClimateTraits();
 
-	// إضافة المجموعات المدعومة بأسلوب ESPHome الحديث
 	for (auto mode : this->supported_modes_) {
 		traits.add_supported_mode(mode);
 	}
@@ -599,22 +598,6 @@ void tclacClimate::set_horizontal_swing_direction(HorizontalSwingDirection direc
 			tclacClimate::takeControl();
 		}
 	}
-}
-
-void tclacClimate::set_supported_presets(const std::set<climate::ClimatePreset> &presets) {
-	this->supported_presets_ = presets;
-}
-
-void tclacClimate::set_supported_modes(const std::set<esphome::climate::ClimateMode> &modes) {
-	this->supported_modes_ = modes;
-}
-
-void tclacClimate::set_supported_fan_modes(const std::set<esphome::climate::ClimateFanMode> &modes) {
-	this->supported_fan_modes_ = modes;
-}
-
-void tclacClimate::set_supported_swing_modes(const std::set<esphome::climate::ClimateSwingMode> &modes) {
-	this->supported_swing_modes_ = modes;
 }
 
 } // namespace tclac
