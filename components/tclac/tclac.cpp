@@ -3,7 +3,7 @@
 * and modify by xaxexa
 * Refactoring & component making:
 * Соловей с паяльником 15.03.2024
-* Fixed Null Pointer Crash & Optional Access (ESPHome 2026 Compatible)
+* Fixed Generator Mode Byte 18 & ESPHome 2026 Safe Pointers/Optionals
 **/
 #include "esphome.h"
 #include "esphome/core/defines.h"
@@ -453,7 +453,10 @@ void tclacClimate::takeControl() {
 	dataTX[15] = 0x00;
 	dataTX[16] = 0x00;
 	dataTX[17] = 0x00;
-	dataTX[18] = 0x00;
+	
+	// ضبط قيمة وضع المولد الصحيحة على البايت 18 بناءً على التجربة الناجحة
+	dataTX[18] = this->gen_mode_;
+	
 	dataTX[20] = 0x00;
 	dataTX[21] = 0x00;
 	dataTX[22] = 0x00;
@@ -465,10 +468,7 @@ void tclacClimate::takeControl() {
 	dataTX[28] = 0x00;
 	dataTX[30] = 0x00;
 	dataTX[31] = 0x00;
-	
-	// إرسال قيمة وضع المولد المسجلة في الخانة 34
-	dataTX[34] = this->gen_mode_;
-	
+	dataTX[34] = 0x00;
 	dataTX[35] = 0x00;
 	dataTX[36] = 0x00;
 	dataTX[37] = 0xFF;
