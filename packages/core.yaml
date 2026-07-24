@@ -9,7 +9,7 @@ external_components:
       type: git
       ref: master
     components: [ tclac ]
-    refresh: 30s
+    refresh: 0s  # تحديث فورِي بدون كاش لضمان سحب ملفات C++ الجديدة
 
 # Конфигурация ESPHome
 esphome:
@@ -23,6 +23,9 @@ esphome:
         id(${device_name}climate).set_beeper_state(false);
         id(${device_name}climate).set_force_mode_state(false);
         
+        // استعادة وضع المولد المحفوظ عند إقلاع الجهاز
+        id(${device_name}climate).set_gen_mode(id(generator_mode_select).active_index());
+
         if (id(display_mode).state){
           id(${device_name}climate).set_display_state(true);
         } else {
@@ -116,19 +119,10 @@ wifi:
 
 captive_portal:
 
-
-# # # # # # # # # # # # # # # # # # # # # # #
-# # # # #     НЕ РЕДАКТИРОВАТЬ!     # # # # #
-# # # # # # # # # # # # # # # # # # # # # # #
-
-# ОБЯЗАТЕЛЬНО отключаем логгирование через UART
 logger:
   baud_rate: 0
 
-# Раздел настроек устройства:
-# - Переключатели
 switch:
-  # Пищалка для подтверждения команд, по умолчанию выключена
   - name: Beeper
     platform: template
     device_class: switch
@@ -145,7 +139,6 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_beeper_state(false);
   
-  # Индикатор уставки температуры на корпусе внутреннего блока, по умолчанию включен
   - name: Display
     platform: template
     device_class: switch
@@ -162,7 +155,6 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_display_state(false);
   
-  # Светодиодная индикация обмена данными с кондиционером, по умолчанию выключена
   - name: Display on module
     platform: template
     device_class: switch
@@ -195,9 +187,27 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_force_mode_state(false);
 
-# - Выпадающие списки
 select:
-  # Настройка вертикального качания
+  # ==========================================
+  # قائمة زر وضع المولد الأصلي المدمج بالكامل
+  # ==========================================
+  - platform: template
+    name: "Generator Mode"
+    id: generator_mode_select
+    entity_category: config
+    options:
+      - "Off"
+      - "Level 1"
+      - "Level 2"
+      - "Level 3"
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: !lambda |-
+          uint8_t mode = id(generator_mode_select).active_index();
+          id(${device_name}climate).set_gen_mode(mode);
+
   - platform: template
     name: Vertical swing
     id: vswing
@@ -219,7 +229,6 @@ select:
             id(${device_name}climate).set_vertical_swing_direction(esphome::tclac::VerticalSwingDirection::DOWNSIDE);
           }
 
-  # Настройка горизонтального качания
   - platform: template
     name: Horizontal swing
     id: hswing
@@ -244,7 +253,6 @@ select:
             id(${device_name}climate).set_horizontal_swing_direction(esphome::tclac::HorizontalSwingDirection::RIGHTSIDE);
           }
 
-  # Настройка фиксации вертикальной заслонки
   - platform: template
     name: Vertical fixing
     id: vfixing
@@ -275,7 +283,6 @@ select:
             id(${device_name}climate).set_vertical_airflow(esphome::tclac::AirflowVerticalDirection::MAX_DOWN);
           }
 
-  # Настройка фиксации горизонатальных заслонок
   - platform: template
     name: Horizontal fixing
     id: hfixing
@@ -310,3 +317,4 @@ climate:
   - platform: tclac
     name: "${device_name} Climate"
     id: ${device_name}climate
+    
