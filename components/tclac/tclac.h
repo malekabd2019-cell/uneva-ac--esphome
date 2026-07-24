@@ -3,7 +3,7 @@
 * and modify by xaxexa
 * Refactoring & component making:
 * Соловей с паяльником 15.03.2024
-* Added Generator Mode support
+* Updated for ESPHome 2024+ API Types
 **/
 
 #ifndef TCL_ESP_TCL_H
@@ -31,15 +31,15 @@ namespace tclac {
 #define FAN_SPEED_POS	8
 #define FAN_QUIET_POS	33
 
-#define FAN_AUTO		0b10000000	//auto
-#define FAN_QUIET		0x80		//silent
-#define FAN_LOW			0b10010000	//	|
-#define FAN_MIDDLE		0b11000000	//	||
-#define FAN_MEDIUM		0b10100000	//	|||
-#define FAN_HIGH		0b11010000	//	||||
-#define FAN_FOCUS		0b10110000	//	|||||
-#define FAN_DIFFUSE		0b10000000	//	POWER [7]
-#define FAN_SPEED_MASK	0b11110000	//FAN SPEED MASK
+#define FAN_AUTO		0b10000000
+#define FAN_QUIET		0x80
+#define FAN_LOW			0b10010000
+#define FAN_MIDDLE		0b11000000
+#define FAN_MEDIUM		0b10100000
+#define FAN_HIGH		0b11010000
+#define FAN_FOCUS		0b10110000
+#define FAN_DIFFUSE		0b10000000
+#define FAN_SPEED_MASK	0b11110000
 
 #define SWING_POS			10
 #define SWING_OFF			0b00000000
@@ -132,10 +132,20 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		void set_horizontal_airflow(AirflowHorizontalDirection direction);
 		void set_vertical_swing_direction(VerticalSwingDirection direction);
 		void set_horizontal_swing_direction(HorizontalSwingDirection direction);
-		void set_supported_presets(const std::set<climate::ClimatePreset> &presets);
-		void set_supported_modes(const std::set<esphome::climate::ClimateMode> &modes);
-		void set_supported_fan_modes(const std::set<esphome::climate::ClimateFanMode> &modes);
-		void set_supported_swing_modes(const std::set<esphome::climate::ClimateSwingMode> &modes);
+
+		// تعديل الوسائط لتستخدم المجموعات الحديثة
+		template<typename T> void set_supported_presets(const T &presets) {
+			for (auto p : presets) this->supported_presets_.insert(p);
+		}
+		template<typename T> void set_supported_modes(const T &modes) {
+			for (auto m : modes) this->supported_modes_.insert(m);
+		}
+		template<typename T> void set_supported_fan_modes(const T &modes) {
+			for (auto f : modes) this->supported_fan_modes_.insert(f);
+		}
+		template<typename T> void set_supported_swing_modes(const T &modes) {
+			for (auto s : modes) this->supported_swing_modes_.insert(s);
+		}
 
 		void set_gen_mode(uint8_t mode) {
 			this->gen_mode_ = mode;
@@ -150,6 +160,8 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		GPIOPin *rx_led_pin_;
 		GPIOPin *tx_led_pin_;
 		ClimateTraits traits() override;
+
+		// استخدام أنماط الـ Set التوافقية المستقرة
 		std::set<ClimateMode> supported_modes_{};
 		std::set<ClimatePreset> supported_presets_{};
 		AirflowVerticalDirection vertical_direction_;
