@@ -16,7 +16,7 @@ class TCLAC : public climate::Climate, public uart::UARTDevice, public Component
   climate::ClimateTraits traits() override;
   void control(const climate::ClimateCall &call) override;
 
-  // دالة ضبط وضع المولد وتثبيته في ذاكرة ESP32 مع الإرسال الفوري
+  // دالة استقبال وتثبيت وضع المولد في الذاكرة بنفس الشفرة
   void set_gen_mode(uint8_t mode) {
     this->gen_mode_ = mode;
     this->send_data();
@@ -28,7 +28,6 @@ class TCLAC : public climate::Climate, public uart::UARTDevice, public Component
   void send_data();
   void read_data();
   
-  // متغير حفظ وضع المولد الأصلي بداخل الذاكرة
   uint8_t gen_mode_{0x00};
 };
 
