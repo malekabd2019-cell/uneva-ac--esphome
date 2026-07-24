@@ -69,7 +69,7 @@ select:
           else if (x == "Level 2") level = 2;
           else if (x == "Level 3") level = 3;
 
-          id(tclacclimate).set_gen_mode(level);
+          id(tclacclimate)->set_gen_mode(level);
 
 # 6. الحساسات التقديرية (فولت، واط، أمبير، استهلاك اليوم)
 sensor:
@@ -90,11 +90,11 @@ sensor:
     accuracy_decimals: 0
     update_interval: 1s
     lambda: |-
-      if (id(tclacclimate).mode == climate::CLIMATE_MODE_OFF) {
+      if (id(tclacclimate)->mode == climate::CLIMATE_MODE_OFF) {
         return 5.0; 
       }
       
-      std::string genState = id(generator_mode_select).state;
+      std::string genState = id(generator_mode_select)->state;
       if (genState == "Level 1") return 700.0;
       if (genState == "Level 2") return 1100.0;
       if (genState == "Level 3") return 1400.0;
@@ -109,8 +109,8 @@ sensor:
     accuracy_decimals: 1
     update_interval: 1s
     lambda: |-
-      if (id(ac_voltage).state > 0) {
-        return id(ac_power).state / id(ac_voltage).state;
+      if (id(ac_voltage)->state > 0) {
+        return id(ac_power)->state / id(ac_voltage)->state;
       }
       return 0.0;
 
