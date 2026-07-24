@@ -3,7 +3,7 @@
 * and modify by xaxexa
 * Refactoring & component making:
 * Соловей с паяльником 15.03.2024
-* Updated for ESPHome 2024+ API Types
+* Updated for ESPHome 2026+ API & Safe Pointers
 **/
 
 #ifndef TCL_ESP_TCL_H
@@ -86,21 +86,21 @@ enum class AirflowHorizontalDirection : uint8_t {
 class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, public PollingComponent {
 
 	private:
-		byte checksum;
-		byte dataTX[38];
-		byte dataRX[61];
+		byte checksum{0};
+		byte dataTX[38]{0};
+		byte dataRX[61]{0};
 		byte poll[8] = {0xBB,0x00,0x01,0x04,0x02,0x01,0x00,0xBD};
-		bool beeper_status_;
-		bool display_status_;
-		bool force_mode_status_;
-		uint8_t switch_preset = 0;
-		bool module_display_status_;
-		uint8_t switch_fan_mode = 0;
-		bool is_call_control = false;
-		uint8_t switch_swing_mode = 0;
-		int target_temperature_set = 0;
-		uint8_t switch_climate_mode = 0;
-		bool allow_take_control = false;
+		bool beeper_status_{false};
+		bool display_status_{false};
+		bool force_mode_status_{false};
+		uint8_t switch_preset{0};
+		bool module_display_status_{false};
+		uint8_t switch_fan_mode{0};
+		bool is_call_control{false};
+		uint8_t switch_swing_mode{0};
+		int target_temperature_set{0};
+		uint8_t switch_climate_mode{0};
+		bool allow_take_control{false};
 
 		uint8_t gen_mode_{0x00};
 		
@@ -133,7 +133,6 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		void set_vertical_swing_direction(VerticalSwingDirection direction);
 		void set_horizontal_swing_direction(HorizontalSwingDirection direction);
 
-		// تعديل الوسائط لتستخدم المجموعات الحديثة
 		template<typename T> void set_supported_presets(const T &presets) {
 			for (auto p : presets) this->supported_presets_.insert(p);
 		}
@@ -157,21 +156,22 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		}
 		
 	protected:
-		GPIOPin *rx_led_pin_;
-		GPIOPin *tx_led_pin_;
+		GPIOPin *rx_led_pin_{nullptr};
+		GPIOPin *tx_led_pin_{nullptr};
 		ClimateTraits traits() override;
 
-		// استخدام أنماط الـ Set التوافقية المستقرة
 		std::set<ClimateMode> supported_modes_{};
 		std::set<ClimatePreset> supported_presets_{};
-		AirflowVerticalDirection vertical_direction_;
+		AirflowVerticalDirection vertical_direction_{AirflowVerticalDirection::LAST};
 		std::set<ClimateFanMode> supported_fan_modes_{};
-		AirflowHorizontalDirection horizontal_direction_;
-		VerticalSwingDirection vertical_swing_direction_;
+		AirflowHorizontalDirection horizontal_direction_{AirflowHorizontalDirection::LAST};
+		VerticalSwingDirection vertical_swing_direction_{VerticalSwingDirection::UP_DOWN};
 		std::set<ClimateSwingMode> supported_swing_modes_{};
-		HorizontalSwingDirection horizontal_swing_direction_;
+		HorizontalSwingDirection horizontal_swing_direction_{HorizontalSwingDirection::LEFT_RIGHT};
 };
-}
-}
 
-#endif //TCL_ESP_TCL_H
+}  // namespace tclac
+}  // namespace esphome
+
+#endif  // TCL_ESP_TCL_H
+			
