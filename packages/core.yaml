@@ -23,7 +23,6 @@ esphome:
         id(${device_name}climate).set_beeper_state(false);
         id(${device_name}climate).set_force_mode_state(false);
         
-        // استخراج القيمة من std::optional باستخدام value_or(0)
         id(${device_name}climate).set_gen_mode(id(generator_mode_select).active_index().value_or(0));
 
         if (id(display_mode).state){
@@ -194,9 +193,9 @@ switch:
 
 select:
   - platform: template
-    name: "Generator Mode"
+    name: "وضع المولد (تقييد القدرة)"
     id: generator_mode_select
-    entity_category: config
+    icon: "mdi:generator-portable"
     options:
       - "Off"
       - "Level 1"
@@ -213,7 +212,6 @@ select:
   - platform: template
     name: Vertical swing
     id: vswing
-    entity_category: config
     options:
       - "Сверху вниз"
       - "В верхней половине"
@@ -235,7 +233,6 @@ select:
   - platform: template
     name: Horizontal swing
     id: hswing
-    entity_category: config
     options:
       - "Слева направо"
       - "В левой части"
@@ -260,7 +257,6 @@ select:
   - platform: template
     name: Vertical fixing
     id: vfixing
-    entity_category: config
     options:
       - "Последнее положение"
       - "До упора вверх"
@@ -291,7 +287,6 @@ select:
   - platform: template
     name: Horizontal fixing
     id: hfixing
-    entity_category: config
     options:
       - "Последнее положение"
       - "До упора влево"
