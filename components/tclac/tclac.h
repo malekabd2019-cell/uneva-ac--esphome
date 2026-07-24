@@ -87,13 +87,9 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 
 	private:
 		byte checksum;
-		// dataTX с управлением состоит из 38 байт
 		byte dataTX[38];
-		// А dataRX по прежнему из 61 байта
 		byte dataRX[61];
-		// Команда запроса состояния
 		byte poll[8] = {0xBB,0x00,0x01,0x04,0x02,0x01,0x00,0xBD};
-		// Инициализация и начальное наполнение переменных состоянй переключателей
 		bool beeper_status_;
 		bool display_status_;
 		bool force_mode_status_;
@@ -106,7 +102,6 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		uint8_t switch_climate_mode = 0;
 		bool allow_take_control = false;
 
-		// متغير حفظ حالة وضع المولد
 		uint8_t gen_mode_{0x00};
 		
 		esphome::climate::ClimateTraits traits_;
@@ -142,9 +137,6 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		void set_supported_fan_modes(const std::set<esphome::climate::ClimateFanMode> &modes);
 		void set_supported_swing_modes(const std::set<esphome::climate::ClimateSwingMode> &modes);
 
-		// ==========================================
-		// الدوال الخاصة بوضع المولد
-		// ==========================================
 		void set_gen_mode(uint8_t mode) {
 			this->gen_mode_ = mode;
 			this->takeControl();
