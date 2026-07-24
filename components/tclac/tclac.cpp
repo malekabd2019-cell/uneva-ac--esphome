@@ -3,7 +3,7 @@
 * and modify by xaxexa
 * Refactoring & component making:
 * Соловей с паяльником 15.03.2024
-* Fixed Generator Mode Byte 18 & ESPHome 2026 Safe Pointers/Optionals
+* Final Integrated Version: Safe Pointers, Optional Value_or, Byte 18 Gen Mode & Full Traits
 **/
 #include "esphome.h"
 #include "esphome/core/defines.h"
@@ -30,6 +30,11 @@ esphome::climate::ClimateTraits tclacClimate::traits() {
 	
 	traits.add_supported_mode(climate::CLIMATE_MODE_OFF);
 	traits.add_supported_mode(climate::CLIMATE_MODE_AUTO);
+	traits.add_supported_mode(climate::CLIMATE_MODE_COOL);
+	traits.add_supported_mode(climate::CLIMATE_MODE_HEAT);
+	traits.add_supported_mode(climate::CLIMATE_MODE_DRY);
+	traits.add_supported_mode(climate::CLIMATE_MODE_FAN_ONLY);
+	
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);
 	traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);
 	traits.add_supported_preset(ClimatePreset::CLIMATE_PRESET_NONE);
@@ -353,88 +358,69 @@ void tclacClimate::takeControl() {
 	switch(vertical_swing_direction_) {
 		case VerticalSwingDirection::UP_DOWN:
 			dataTX[32]	+= 0b00001000;
-			ESP_LOGD("TCL", "Vertical swing: up-down");
 			break;
 		case VerticalSwingDirection::UPSIDE:
 			dataTX[32]	+= 0b00010000;
-			ESP_LOGD("TCL", "Vertical swing: upper");
 			break;
 		case VerticalSwingDirection::DOWNSIDE:
 			dataTX[32]	+= 0b00011000;
-			ESP_LOGD("TCL", "Vertical swing: downer");
 			break;
 	}
 
 	switch(horizontal_swing_direction_) {
 		case HorizontalSwingDirection::LEFT_RIGHT:
 			dataTX[33]	+= 0b00001000;
-			ESP_LOGD("TCL", "Horizontal swing: left-right");
 			break;
 		case HorizontalSwingDirection::LEFTSIDE:
 			dataTX[33]	+= 0b00010000;
-			ESP_LOGD("TCL", "Horizontal swing: lefter");
 			break;
 		case HorizontalSwingDirection::CENTER:
 			dataTX[33]	+= 0b00011000;
-			ESP_LOGD("TCL", "Horizontal swing: center");
 			break;
 		case HorizontalSwingDirection::RIGHTSIDE:
 			dataTX[33]	+= 0b00100000;
-			ESP_LOGD("TCL", "Horizontal swing: righter");
 			break;
 	}
 
 	switch(vertical_direction_) {
 		case AirflowVerticalDirection::LAST:
 			dataTX[32]	+= 0b00000000;
-			ESP_LOGD("TCL", "Vertical fix: last position");
 			break;
 		case AirflowVerticalDirection::MAX_UP:
 			dataTX[32]	+= 0b00000001;
-			ESP_LOGD("TCL", "Vertical fix: up");
 			break;
 		case AirflowVerticalDirection::UP:
 			dataTX[32]	+= 0b00000010;
-			ESP_LOGD("TCL", "Vertical fix: upper");
 			break;
 		case AirflowVerticalDirection::CENTER:
 			dataTX[32]	+= 0b00000011;
-			ESP_LOGD("TCL", "Vertical fix: center");
 			break;
 		case AirflowVerticalDirection::DOWN:
 			dataTX[32]	+= 0b00000100;
-			ESP_LOGD("TCL", "Vertical fix: downer");
 			break;
 		case AirflowVerticalDirection::MAX_DOWN:
 			dataTX[32]	+= 0b00000101;
-			ESP_LOGD("TCL", "Vertical fix: down");
 			break;
 	}
 
 	switch(horizontal_direction_) {
 		case AirflowHorizontalDirection::LAST:
 			dataTX[33]	+= 0b00000000;
-			ESP_LOGD("TCL", "Horizontal fix: last position");
 			break;
 		case AirflowHorizontalDirection::MAX_LEFT:
 			dataTX[33]	+= 0b00000001;
-			ESP_LOGD("TCL", "Horizontal fix: left");
 			break;
 		case AirflowHorizontalDirection::LEFT:
 			dataTX[33]	+= 0b00000010;
-			ESP_LOGD("TCL", "Horizontal fix: lefter");
 			break;
 		case AirflowHorizontalDirection::CENTER:
 			dataTX[33]	+= 0b00000011;
-			ESP_LOGD("TCL", "Horizontal fix: center");
 			break;
 		case AirflowHorizontalDirection::RIGHT:
 			dataTX[33]	+= 0b00000100;
-			ESP_LOGD("TCL", "Horizontal fix: righter");
 			break;
 		case AirflowHorizontalDirection::MAX_RIGHT:
 			dataTX[33]	+= 0b00000101;
-			ESP_LOGD("TCL", "Horizontal fix: right");
 			break;
 	}
 
@@ -454,7 +440,7 @@ void tclacClimate::takeControl() {
 	dataTX[16] = 0x00;
 	dataTX[17] = 0x00;
 	
-	// ضبط قيمة وضع المولد الصحيحة على البايت 18 بناءً على التجربة الناجحة
+	// وضع المولد على البايت 18 (المجرب والناجح)
 	dataTX[18] = this->gen_mode_;
 	
 	dataTX[20] = 0x00;
