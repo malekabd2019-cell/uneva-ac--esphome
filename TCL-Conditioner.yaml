@@ -40,11 +40,11 @@ time:
   - platform: homeassistant
     id: homeassistant_time
 
-# 4. الحزمة الأساسية للمكيف من مستودعك
+# 4. الحزمة الأساسية للمكيف من مستودعك الصحيح
 packages:
   remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
-    ref: master
+    url: https://github.com/malekabd2019-cell/uneva-ac--esphome.git
+    ref: main
     files:
       - packages/core.yaml
     refresh: 0s
