@@ -20,7 +20,7 @@ esp32:
   framework:
     type: arduino
 
-# 1. إعداد السيريال القياسي (بدون خيارات غير مدعومة)
+# 1. إعداد السيريال القياسي
 uart:
   id: uart_bus
   rx_pin: ${uart_rx}
@@ -40,14 +40,14 @@ time:
   - platform: homeassistant
     id: homeassistant_time
 
-# 4. الحزمة الأساسية للمكيف
+# 4. الحزمة الأساسية للمكيف (تم توجيهها لمستودعك الخاص بشكل صريح)
 packages:
   remote_package:
-    url: https://github.com/sorz2122/tclac.git
+    url: https://github.com/I-am-nightingale/tclac.git
     ref: master
     files:
       - packages/core.yaml
-    refresh: 30s
+    refresh: 0s
 
 # 5. الحساسات التقديرية (فولت، واط، أمبير، استهلاك اليوم)
 sensor:
@@ -77,10 +77,9 @@ sensor:
         return 0.0;
       }
 
-      std::string genState = id(generator_mode_select).state;
-      if (genState == "Level 1") return 700.0;
-      if (genState == "Level 2") return 1100.0;
-      if (genState == "Level 3") return 1400.0;
+      if (id(generator_mode_select).state == "Level 1") return 700.0;
+      if (id(generator_mode_select).state == "Level 2") return 1100.0;
+      if (id(generator_mode_select).state == "Level 3") return 1400.0;
       
       return 1800.0;
 
@@ -105,80 +104,4 @@ sensor:
     filters:
       - multiply: 0.001
     unit_of_measurement: "kWh"
-
-# 6. قائمة وضع المولد الشاملة
-select:
-  - platform: template
-    name: "وضع المولد (Generator)"
-    id: generator_mode_select
-    icon: "mdi:generator-portable"
-    options:
-      - "Off"
-      - "Level 1"
-      - "Level 2"
-      - "Level 3"
-    initial_option: "Off"
-    optimistic: true
-    set_action:
-      - lambda: |-
-          uint8_t genLevel = 0;
-          if (x == "Level 1") genLevel = 1;
-          else if (x == "Level 2") genLevel = 2;
-          else if (x == "Level 3") genLevel = 3;
-
-          uint8_t currentTemp = 24;
-          uint8_t acModeByte = 0x03; 
-          uint8_t fanSpeedByte = 0x64; 
-
-          if (!App.get_climates().empty()) {
-            auto *ac = App.get_climates()[0];
-            
-            if (!std::isnan(ac->target_temperature)) {
-              currentTemp = (uint8_t) ac->target_temperature;
-            }
-
-            switch (ac->mode) {
-              case climate::CLIMATE_MODE_COOL:     acModeByte = 0x03; break;
-              case climate::CLIMATE_MODE_HEAT:     acModeByte = 0x04; break;
-              case climate::CLIMATE_MODE_DRY:      acModeByte = 0x02; break;
-              case climate::CLIMATE_MODE_FAN_ONLY: acModeByte = 0x01; break;
-              default: acModeByte = 0x03; break;
-            }
-
-            if (ac->fan_mode.has_value()) {
-              switch (ac->fan_mode.value()) {
-                case climate::CLIMATE_FAN_LOW:    fanSpeedByte = 0x20; break;
-                case climate::CLIMATE_FAN_MEDIUM: fanSpeedByte = 0x40; break;
-                case climate::CLIMATE_FAN_HIGH:   fanSpeedByte = 0x60; break;
-                case climate::CLIMATE_FAN_AUTO:   fanSpeedByte = 0x64; break;
-                default: fanSpeedByte = 0x64; break;
-              }
-            }
-          }
-
-          if (currentTemp < 16) currentTemp = 16;
-          if (currentTemp > 30) currentTemp = 30;
-
-          uint8_t dataTX[38] = {0};
-          dataTX[0] = 0xBB;
-          dataTX[1] = 0x00;
-          dataTX[2] = 0x01;
-          dataTX[3] = 0x03;
-          dataTX[4] = 0x20;
-          dataTX[5] = 0x03;
-          dataTX[6] = 0x01;
-          dataTX[7] = fanSpeedByte;   
-          dataTX[8] = acModeByte;     
-          dataTX[9] = 31 - currentTemp; 
-          dataTX[10] = 0x00;
-          dataTX[13] = 0x01;
-          dataTX[18] = genLevel;      
-
-          uint8_t crc = 0;
-          for (int i = 0; i < 37; i++) {
-            crc ^= dataTX[i];
-          }
-          dataTX[37] = crc;
-
-          id(uart_bus).write_array(dataTX, 38);
-          
+    
