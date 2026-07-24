@@ -1,11 +1,25 @@
-ClimateTraits tclacClimate::traits() {
+/**
+* Create by Miguel Ángel López on 20/07/19
+* and modify by xaxexa
+* Refactoring & component making:
+* Соловей с паяльником 15.03.2024
+* Added Generator Mode Integration
+**/
+#include "esphome.h"
+#include "esphome/core/defines.h"
+#include "tclac.h"
+
+namespace esphome{
+namespace tclac{
+
+// استخدام النطاق الكامل لتجنب خطأ عدم تعريف النوع
+esphome::climate::ClimateTraits tclacClimate::traits() {
 	auto traits = climate::ClimateTraits();
 
 	traits.set_supports_action(false);
 	traits.set_supports_current_temperature(true);
 	traits.set_supports_two_point_target_temperature(false);
 
-	// التحويل من std::set إلى الأقنعة الجديدة (Masks)
 	for (auto mode : this->supported_modes_) {
 		traits.add_supported_mode(mode);
 	}
