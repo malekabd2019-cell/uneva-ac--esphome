@@ -40,7 +40,7 @@ time:
   - platform: homeassistant
     id: homeassistant_time
 
-# 4. الحزمة الأساسية للمكيف (تم توجيهها لمستودعك الخاص بشكل صريح)
+# 4. الحزمة الأساسية للمكيف
 packages:
   remote_package:
     url: https://github.com/I-am-nightingale/tclac.git
@@ -69,19 +69,19 @@ sensor:
     update_interval: 1s
     lambda: |-
       if (!App.get_climates().empty()) {
-        auto *ac = App.get_climates()[0];
+        auto *ac = (esphome::tclac::TCLAC *) App.get_climates()[0];
         if (ac->mode == climate::CLIMATE_MODE_OFF) {
           return 5.0; 
         }
-      } else {
-        return 0.0;
+        
+        uint8_t gen = ac->get_gen_mode();
+        if (gen == 1) return 700.0;
+        if (gen == 2) return 1100.0;
+        if (gen == 3) return 1400.0;
+        
+        return 1800.0;
       }
-
-      if (id(generator_mode_select).state == "Level 1") return 700.0;
-      if (id(generator_mode_select).state == "Level 2") return 1100.0;
-      if (id(generator_mode_select).state == "Level 3") return 1400.0;
-      
-      return 1800.0;
+      return 0.0;
 
   - platform: template
     name: "أمبير المكيف (تقديري)"
