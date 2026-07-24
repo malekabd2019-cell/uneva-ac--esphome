@@ -3,7 +3,7 @@
 * and modify by xaxexa
 * Refactoring & component making:
 * Соловей с паяльником 15.03.2024
-* Added Generator Mode Integration & Updated for ESPHome 2026+ (Safe Pointers)
+* Fixed Null Pointer Crash & Optional Access (ESPHome 2026 Compatible)
 **/
 #include "esphome.h"
 #include "esphome/core/defines.h"
@@ -193,13 +193,13 @@ void tclacClimate::control(const ClimateCall &call) {
 	if (call.get_preset().has_value()){
 		switch_preset = call.get_preset().value();
 	} else {
-		switch_preset = preset.value();
+		switch_preset = preset.value_or(ClimatePreset::CLIMATE_PRESET_NONE);
 	}
 	
 	if (call.get_fan_mode().has_value()){
 		switch_fan_mode = call.get_fan_mode().value();
 	} else {
-		switch_fan_mode = fan_mode.value();
+		switch_fan_mode = fan_mode.value_or(climate::CLIMATE_FAN_AUTO);
 	}
 	
 	if (call.get_swing_mode().has_value()){
@@ -233,8 +233,8 @@ void tclacClimate::takeControl() {
 	if (is_call_control != true){
 		ESP_LOGD("TCL", "Get MODE from AC for force config");
 		switch_climate_mode = mode;
-		switch_preset = preset.value();
-		switch_fan_mode = fan_mode.value();
+		switch_preset = preset.value_or(ClimatePreset::CLIMATE_PRESET_NONE);
+		switch_fan_mode = fan_mode.value_or(climate::CLIMATE_FAN_AUTO);
 		switch_swing_mode = swing_mode;
 		target_temperature_set = 31-(int)target_temperature;
 	}
