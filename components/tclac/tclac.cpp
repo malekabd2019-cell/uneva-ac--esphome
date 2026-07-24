@@ -3,7 +3,7 @@
 * and modify by xaxexa
 * Refactoring & component making:
 * Соловей с паяльником 15.03.2024
-* Added Generator Mode Integration & Updated for ESPHome 2026+
+* Added Generator Mode Integration & Updated for ESPHome 2026+ (Safe Pointers)
 **/
 #include "esphome.h"
 #include "esphome/core/defines.h"
@@ -39,12 +39,16 @@ esphome::climate::ClimateTraits tclacClimate::traits() {
 
 void tclacClimate::setup() {
 #ifdef CONF_RX_LED
-	this->rx_led_pin_->setup();
-	this->rx_led_pin_->digital_write(false);
+	if (this->rx_led_pin_ != nullptr) {
+		this->rx_led_pin_->setup();
+		this->rx_led_pin_->digital_write(false);
+	}
 #endif
 #ifdef CONF_TX_LED
-	this->tx_led_pin_->setup();
-	this->tx_led_pin_->digital_write(false);
+	if (this->tx_led_pin_ != nullptr) {
+		this->tx_led_pin_->setup();
+		this->tx_led_pin_->digital_write(false);
+	}
 #endif
 }
 
@@ -502,26 +506,18 @@ byte tclacClimate::getChecksum(const byte * message, size_t size) {
 void tclacClimate::dataShow(bool flow, bool shine) {
 	if (module_display_status_){
 		if (flow == 0){
-			if (shine == 1){
 #ifdef CONF_RX_LED
-				this->rx_led_pin_->digital_write(true);
-#endif
-			} else {
-#ifdef CONF_RX_LED
-				this->rx_led_pin_->digital_write(false);
-#endif
+			if (this->rx_led_pin_ != nullptr) {
+				this->rx_led_pin_->digital_write(shine);
 			}
+#endif
 		}
 		if (flow == 1) {
-			if (shine == 1){
 #ifdef CONF_TX_LED
-				this->tx_led_pin_->digital_write(true);
-#endif
-			} else {
-#ifdef CONF_TX_LED
-				this->tx_led_pin_->digital_write(false);
-#endif
+			if (this->tx_led_pin_ != nullptr) {
+				this->tx_led_pin_->digital_write(shine);
 			}
+#endif
 		}
 	}
 }
