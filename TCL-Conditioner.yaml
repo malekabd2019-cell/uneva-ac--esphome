@@ -32,7 +32,7 @@ substitutions:
 packages:
   remote_package:
     url: https://github.com/malekabd2019-cell/uneva-ac--esphome.git
-    ref: master
+    ref: main
     files:
     # v – Zeilen müssen exakt hier ausgerichtet sein, sonst gibt’s Probleme!
       - packages/core.yaml # Das Herzstück des Ganzen
