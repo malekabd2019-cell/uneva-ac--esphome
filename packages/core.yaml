@@ -7,7 +7,7 @@ external_components:
   - source:
       url: https://github.com/malekabd2019-cell/uneva-ac--esphome.git
       type: git
-      ref: master
+      ref: main
     components: [ tclac ]
     refresh: 30s
 
