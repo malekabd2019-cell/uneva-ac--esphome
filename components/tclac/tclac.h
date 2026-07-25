@@ -3,7 +3,6 @@
 * and modify by xaxexa
 * Refactoring & component making:
 * Соловей с паяльником 15.03.2024
-* Updated for ESPHome 2026+ API & Safe Pointers
 **/
 
 #ifndef TCL_ESP_TCL_H
@@ -13,6 +12,7 @@
 #include "esphome/core/defines.h"
 #include "esphome/components/uart/uart.h"
 #include "esphome/components/climate/climate.h"
+#include "esphome/components/select/select.h"
 
 namespace esphome {
 namespace tclac {
@@ -31,15 +31,15 @@ namespace tclac {
 #define FAN_SPEED_POS	8
 #define FAN_QUIET_POS	33
 
-#define FAN_AUTO		0b10000000
-#define FAN_QUIET		0x80
-#define FAN_LOW			0b10010000
-#define FAN_MIDDLE		0b11000000
-#define FAN_MEDIUM		0b10100000
-#define FAN_HIGH		0b11010000
-#define FAN_FOCUS		0b10110000
-#define FAN_DIFFUSE		0b10000000
-#define FAN_SPEED_MASK	0b11110000
+#define FAN_AUTO		0b10000000	//auto
+#define FAN_QUIET		0x80		//silent
+#define FAN_LOW			0b10010000	//	|
+#define FAN_MIDDLE		0b11000000	//	||
+#define FAN_MEDIUM		0b10100000	//	|||
+#define FAN_HIGH		0b11010000	//	||||
+#define FAN_FOCUS		0b10110000	//	|||||
+#define FAN_DIFFUSE		0b10000000	//	POWER [7]
+#define FAN_SPEED_MASK	0b11110000	//FAN SPEED MASK
 
 #define SWING_POS			10
 #define SWING_OFF			0b00000000
@@ -86,23 +86,25 @@ enum class AirflowHorizontalDirection : uint8_t {
 class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, public PollingComponent {
 
 	private:
-		byte checksum{0};
-		byte dataTX[38]{0};
-		byte dataRX[61]{0};
+		byte checksum;
+		// dataTX с управлением состоит из 38 байт
+		byte dataTX[38];
+		// А dataRX по прежнему из 61 байта
+		byte dataRX[61];
+		// Команда запроса состояния
 		byte poll[8] = {0xBB,0x00,0x01,0x04,0x02,0x01,0x00,0xBD};
-		bool beeper_status_{false};
-		bool display_status_{false};
-		bool force_mode_status_{false};
-		uint8_t switch_preset{0};
-		bool module_display_status_{false};
-		uint8_t switch_fan_mode{0};
-		bool is_call_control{false};
-		uint8_t switch_swing_mode{0};
-		int target_temperature_set{0};
-		uint8_t switch_climate_mode{0};
-		bool allow_take_control{false};
-
-		uint8_t gen_mode_{0x00};
+		// Инициализация и начальное наполнение переменных состоянй переключателей
+		bool beeper_status_;
+		bool display_status_;
+		bool force_mode_status_;
+		uint8_t switch_preset = 0;
+		bool module_display_status_;
+		uint8_t switch_fan_mode = 0;
+		bool is_call_control = false;
+		uint8_t switch_swing_mode = 0;
+		int target_temperature_set = 0;
+		uint8_t switch_climate_mode = 0;
+		bool allow_take_control = false;
 		
 		esphome::climate::ClimateTraits traits_;
 		
@@ -132,46 +134,31 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		void set_horizontal_airflow(AirflowHorizontalDirection direction);
 		void set_vertical_swing_direction(VerticalSwingDirection direction);
 		void set_horizontal_swing_direction(HorizontalSwingDirection direction);
+		void set_supported_presets(const std::set<climate::ClimatePreset> &presets);
+		void set_supported_modes(const std::set<esphome::climate::ClimateMode> &modes);
+		void set_supported_fan_modes(const std::set<esphome::climate::ClimateFanMode> &modes);
+		void set_supported_swing_modes(const std::set<esphome::climate::ClimateSwingMode> &modes);
 
-		template<typename T> void set_supported_presets(const T &presets) {
-			for (auto p : presets) this->supported_presets_.insert(p);
-		}
-		template<typename T> void set_supported_modes(const T &modes) {
-			for (auto m : modes) this->supported_modes_.insert(m);
-		}
-		template<typename T> void set_supported_fan_modes(const T &modes) {
-			for (auto f : modes) this->supported_fan_modes_.insert(f);
-		}
-		template<typename T> void set_supported_swing_modes(const T &modes) {
-			for (auto s : modes) this->supported_swing_modes_.insert(s);
-		}
-
-		void set_gen_mode(uint8_t mode) {
-			this->gen_mode_ = mode;
-			this->takeControl();
-		}
-
-		uint8_t get_gen_mode() const {
-			return this->gen_mode_;
-		}
+		// --- إضافات وضع المولد (Generator Mode) ---
+		uint8_t gen_mode_{0};
+		esphome::select::Select *gen_select_{nullptr};
+		void set_gen_mode(uint8_t mode) { this->gen_mode_ = mode; }
+		void set_gen_select(esphome::select::Select *s) { this->gen_select_ = s; }
 		
 	protected:
-		GPIOPin *rx_led_pin_{nullptr};
-		GPIOPin *tx_led_pin_{nullptr};
+		GPIOPin *rx_led_pin_;
+		GPIOPin *tx_led_pin_;
 		ClimateTraits traits() override;
-
 		std::set<ClimateMode> supported_modes_{};
 		std::set<ClimatePreset> supported_presets_{};
-		AirflowVerticalDirection vertical_direction_{AirflowVerticalDirection::LAST};
+		AirflowVerticalDirection vertical_direction_;
 		std::set<ClimateFanMode> supported_fan_modes_{};
-		AirflowHorizontalDirection horizontal_direction_{AirflowHorizontalDirection::LAST};
-		VerticalSwingDirection vertical_swing_direction_{VerticalSwingDirection::UP_DOWN};
+		AirflowHorizontalDirection horizontal_direction_;
+		VerticalSwingDirection vertical_swing_direction_;
 		std::set<ClimateSwingMode> supported_swing_modes_{};
-		HorizontalSwingDirection horizontal_swing_direction_{HorizontalSwingDirection::LEFT_RIGHT};
+		HorizontalSwingDirection horizontal_swing_direction_;
 };
+}
+}
 
-}  // namespace tclac
-}  // namespace esphome
-
-#endif  // TCL_ESP_TCL_H
-			
+#endif //TCL_ESP_TCL_H
