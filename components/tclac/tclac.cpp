@@ -15,6 +15,11 @@ namespace tclac{
 ClimateTraits tclacClimate::traits() {
 	auto traits = climate::ClimateTraits();
 
+	// ضبط حدود وخطوات درجات الحرارة لإعادة إظهار الأزرار بشكل صحيح
+	traits.set_visual_min_temperature(16.0f);
+	traits.set_visual_max_temperature(31.0f);
+	traits.set_visual_temperature_step(1.0f);
+
 	for (auto mode : this->supported_modes_) {
 		traits.add_supported_mode(mode);
 	}
@@ -28,11 +33,11 @@ ClimateTraits tclacClimate::traits() {
 		traits.add_supported_swing_mode(swing_mode);
 	}
 	
-	traits.add_supported_mode(climate::CLIMATE_MODE_OFF);			// Выключенный режим кондиционера доступен всегда
-	traits.add_supported_mode(climate::CLIMATE_MODE_AUTO);			// Автоматический режим кондиционера тоже
-	traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);		// Автоматический режим вентилятора доступен всегда
-	traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);	// Выключенный режим качания заслонок доступен всегда
-	traits.add_supported_preset(ClimatePreset::CLIMATE_PRESET_NONE);// На всякий случай без предустановок
+	traits.add_supported_mode(climate::CLIMATE_MODE_OFF);
+	traits.add_supported_mode(climate::CLIMATE_MODE_AUTO);
+	traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);
+	traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);
+	traits.add_supported_preset(ClimatePreset::CLIMATE_PRESET_NONE);
 
 	return traits;
 }
@@ -51,17 +56,14 @@ void tclacClimate::setup() {
 }
 
 void tclacClimate::loop()  {
-	// Если в буфере UART что-то есть, то читаем это что-то
 	if (esphome::uart::UARTDevice::available() > 0) {
 		dataShow(0, true);
 		dataRX[0] = esphome::uart::UARTDevice::read();
-		// Если принятый байт- не заголовок (0xBB), то просто покидаем цикл
 		if (dataRX[0] != 0xBB) {
 			ESP_LOGD("TCL", "Wrong byte");
 			dataShow(0,0);
 			return;
 		}
-		// А вот если совпал заголовок (0xBB), то начинаем чтение по цепочке еще 4 байт
 		delay(5);
 		dataRX[1] = esphome::uart::UARTDevice::read();
 		delay(5);
@@ -71,19 +73,16 @@ void tclacClimate::loop()  {
 		delay(5);
 		dataRX[4] = esphome::uart::UARTDevice::read();
 
-		// Из первых 5 байт нам нужен пятый- он содержит длину сообщения
 		esphome::uart::UARTDevice::read_array(dataRX+5, dataRX[4]+1);
 
 		byte check = getChecksum(dataRX, sizeof(dataRX));
 
-		// Проверяем контрольную сумму
 		if (check != dataRX[60]) {
 			ESP_LOGD("TCL", "Invalid checksum %x", check);
 			tclacClimate::dataShow(0,0);
 			return;
 		}
 		tclacClimate::dataShow(0,0);
-		// Прочитав все из буфера приступаем к разбору данных
 		tclacClimate::readData();
 	}
 }
@@ -96,6 +95,7 @@ void tclacClimate::update() {
 
 void tclacClimate::readData() {
 	
+	// قراءة درجة الحرارة الصحيحة دون تداخل
 	current_temperature = float((( (dataRX[17] << 8) | dataRX[18] ) / 374 - 32)/1.8);
 	target_temperature = (dataRX[FAN_SPEED_POS] & SET_TEMP_MASK) + 16;
 
@@ -181,18 +181,6 @@ void tclacClimate::readData() {
 		mode = climate::CLIMATE_MODE_OFF;
 		swing_mode = climate::CLIMATE_SWING_OFF;
 		preset = ClimatePreset::CLIMATE_PRESET_NONE;
-	}
-
-	// --- قراءة وضع المولد من المكيف (البايت 18) وتحديث القائمة المنسدلة ---
-	uint8_t current_gen = dataRX[18];
-	if (this->gen_select_ != nullptr && this->gen_mode_ != current_gen) {
-		this->gen_mode_ = current_gen;
-		switch (current_gen) {
-			case 0: this->gen_select_->publish_state("Off"); break;
-			case 1: this->gen_select_->publish_state("Level 1"); break;
-			case 2: this->gen_select_->publish_state("Level 2"); break;
-			case 3: this->gen_select_->publish_state("Level 3"); break;
-		}
 	}
 
 	this->publish_state();
@@ -447,7 +435,7 @@ void tclacClimate::takeControl() {
 	dataTX[15] = 0x00;
 	dataTX[16] = 0x00;
 	dataTX[17] = 0x00;
-	dataTX[18] = this->gen_mode_;
+	dataTX[18] = this->gen_mode_; // إرسال وضع المولد المحدد للمكيف عبر البايت 18
 	dataTX[20] = 0x00;
 	dataTX[21] = 0x00;
 	dataTX[22] = 0x00;
