@@ -5,11 +5,12 @@
 #include "esphome/core/defines.h"
 #include "esphome/components/climate/climate.h"
 #include "esphome/components/uart/uart.h"
+#include "esphome/components/select/select.h"
 
 namespace esphome {
 namespace tclac {
 
-// التعريفات الثابتة
+// تعريفات الأوضاع (كما هي)
 #define MODE_POS         8
 #define MODE_MASK        0x0F
 #define MODE_AUTO        0x08
@@ -44,11 +45,10 @@ enum class AirflowHorizontalDirection { LAST, MAX_LEFT, LEFT, CENTER, RIGHT, MAX
 enum class VerticalSwingDirection { UP_DOWN, UPSIDE, DOWNSIDE };
 enum class HorizontalSwingDirection { LEFT_RIGHT, LEFTSIDE, CENTER, RIGHTSIDE };
 
-// الكلاس يرث من climate::Climate (الذي يحوي Component) ومنفذ UART فقط
 class tclacClimate : public uart::UARTDevice, public climate::Climate {
  public:
   void setup() override;
-  void loop() override;                          // يدير التحديث الدوري
+  void loop() override;
   void control(const climate::ClimateCall &call) override;
   climate::ClimateTraits traits() override;
 
@@ -67,8 +67,9 @@ class tclacClimate : public uart::UARTDevice, public climate::Climate {
   void set_vertical_swing_direction(VerticalSwingDirection direction);
   void set_horizontal_swing_direction(HorizontalSwingDirection direction);
 
-  // وضع المولد
-  void set_generator_level(int level);
+  // ====== وضع المولد (مدمج بالكامل) ======
+  select::Select *gen_select_ = nullptr;       // كائن الـ Select
+  std::string last_gen_state_ = "Off";         // لمقارنة التغيير وتجنب الإرسال المتكرر
 
  protected:
   void readData();
@@ -77,7 +78,10 @@ class tclacClimate : public uart::UARTDevice, public climate::Climate {
   String getHex(byte *message, byte size);
   byte getChecksum(const byte *message, size_t size);
   void dataShow(bool flow, bool shine);
-  void do_update();                              // تنفيذ الاستطلاع الدوري
+  void do_update();
+
+  // دالة خاصة لإرسال أمر المولد
+  void send_generator_command(int level);
 
   bool beeper_status_{true};
   bool display_status_{true};
@@ -102,7 +106,7 @@ class tclacClimate : public uart::UARTDevice, public climate::Climate {
   byte poll[19] = {0xBB, 0x00, 0x01, 0x04, 0x19, 0x03, 0x01, 0x00, 0x00,
                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-  uint32_t last_poll_{0};                       // لتوقيت الاستطلاع
+  uint32_t last_poll_{0};
 
 #ifdef CONF_RX_LED
   GPIOPin *rx_led_pin_{nullptr};
