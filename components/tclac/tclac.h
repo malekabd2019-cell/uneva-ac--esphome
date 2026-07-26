@@ -5,12 +5,11 @@
 #include "esphome/core/defines.h"
 #include "esphome/components/climate/climate.h"
 #include "esphome/components/uart/uart.h"
-#include "esphome/components/sensor/sensor.h"
+// لا حاجة لتضمين sensor.h منفصلاً
 
 namespace esphome {
 namespace tclac {
 
-// تعريفات الأنماط (يجب أن تتطابق مع ملف .cpp)
 class tclacClimate : public Component, public uart::UARTDevice, public climate::Climate {
  public:
   void setup() override;
@@ -35,9 +34,9 @@ class tclacClimate : public Component, public uart::UARTDevice, public climate::
   void set_vertical_swing_direction(VerticalSwingDirection direction);
   void set_horizontal_swing_direction(HorizontalSwingDirection direction);
 
-  // ====== إضافة وضع المولد والأمبير ======
+  // دوال المولد والأمبير
   void set_generator_level(int level);
-  void set_ampere_sensor(sensor::Sensor *sensor); // إن أردت ربط مستشعر خارجي (اختياري)
+  void set_ampere_sensor(sensor::Sensor *sensor); // اختياري
 
  protected:
   void readData();
@@ -72,9 +71,9 @@ class tclacClimate : public Component, public uart::UARTDevice, public climate::
   byte poll[19] = {0xBB, 0x00, 0x01, 0x04, 0x19, 0x03, 0x01, 0x00, 0x00,
                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-  // ====== إضافة متغيرات المولد والأمبير ======
+  // متغيرات المولد والأمبير
   int generator_level_{0};
-  sensor::Sensor *ampere_sensor_{nullptr}; // مؤشر لمستشعر التيار
+  sensor::Sensor *ampere_sensor_{nullptr};
 
 #ifdef CONF_RX_LED
   GPIOPin *rx_led_pin_{nullptr};
