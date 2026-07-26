@@ -16,7 +16,7 @@ namespace tclac {
 
 #define MODE_AUTO		0b00110101
 #define MODE_COOL		0b00110001
-#define MODE_DRY		0b00110013
+#define MODE_DRY		0b00110011 // تم تصحيح الرقم 3 الأخير إلى 1
 #define MODE_FAN_ONLY	0b00110010
 #define MODE_HEAT		0b00110100
 
