@@ -21,7 +21,7 @@ esphome:
         
         // إسناد قيمة المولد للشريحة فور الإقلاع
         uint8_t init_mode = id(generator_mode_select).active_index().value_or(0);
-        id(${device_name}climate).set_gen_mode(init_mode);
+        id(${device_name}climate).set_generator_level(init_mode);
 
         if (id(display_mode).state){
           id(${device_name}climate).set_display_state(true);
@@ -195,12 +195,12 @@ select:
       - "Level 2"
       - "Level 3"
     optimistic: true
-    restore_value: true
+    # يمكنك إضافة restore_value إذا أردت استعادته تلقائياً أيضاً
     on_value:
       then:
         lambda: !lambda |-
           uint8_t mode = id(generator_mode_select).active_index().value_or(0);
-          id(${device_name}climate).set_gen_mode(mode);
+          id(${device_name}climate).set_generator_level(mode);
 
   - platform: template
     name: Vertical swing
@@ -311,4 +311,3 @@ climate:
   - platform: tclac
     name: "${device_name} Climate"
     id: ${device_name}climate
-    
