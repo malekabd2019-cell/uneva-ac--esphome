@@ -56,3 +56,8 @@ esp32:
 #  pin:
 #    number: GPIO5
 #    inverted: false
+
+# ========== إضافة التحديث اللاسلكي (OTA) ==========
+ota:
+  - platform: esphome
+    password: ${ota_pass}
