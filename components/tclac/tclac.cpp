@@ -50,6 +50,13 @@ void tclacClimate::setup() {
 }
 
 void tclacClimate::loop() {
+  // استطلاع المكيف كل 5 ثوانٍ
+  if (millis() - last_poll_ > 5000) {
+    do_update();
+    last_poll_ = millis();
+  }
+
+  // قراءة الردود من UART
   if (esphome::uart::UARTDevice::available() > 0) {
     dataShow(0, true);
     dataRX[0] = esphome::uart::UARTDevice::read();
@@ -80,7 +87,7 @@ void tclacClimate::loop() {
   }
 }
 
-void tclacClimate::update() {
+void tclacClimate::do_update() {
   dataShow(1, 1);
   this->esphome::uart::UARTDevice::write_array(poll, sizeof(poll));
   dataShow(1, 0);
