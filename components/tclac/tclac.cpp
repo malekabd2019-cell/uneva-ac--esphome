@@ -47,6 +47,25 @@ void tclacClimate::setup() {
   this->tx_led_pin_->setup();
   this->tx_led_pin_->digital_write(false);
 #endif
+
+  // ====== إنشاء كائن select وضع المولد تلقائياً ======
+  gen_select_ = new select::Select();
+  gen_select_->set_name("وضع المولد (Generator)");
+  gen_select_->set_icon("mdi:generator-portable");
+  gen_select_->traits.set_options({"Off", "Level 1", "Level 2", "Level 3"});
+  gen_select_->set_optimistic(false);
+  gen_select_->add_on_state_callback([this](std::string state, size_t index) {
+    // تجنب الإرسال إذا كان التغيير قادماً من التحديث التلقائي
+    if (state != last_gen_state_) {
+      int lvl = 0;
+      if (state == "Level 1") lvl = 1;
+      else if (state == "Level 2") lvl = 2;
+      else if (state == "Level 3") lvl = 3;
+      send_generator_command(lvl);
+      last_gen_state_ = state;
+    }
+  });
+  App.register_select(gen_select_);
 }
 
 void tclacClimate::loop() {
@@ -146,6 +165,21 @@ void tclacClimate::readData() {
     mode = climate::CLIMATE_MODE_OFF;
     swing_mode = climate::CLIMATE_SWING_OFF;
     preset = climate::CLIMATE_PRESET_NONE;
+  }
+
+  // ====== تحديث select وضع المولد ======
+  if (gen_select_ != nullptr) {
+    uint8_t gen_val = dataRX[18];
+    std::string option;
+    if (gen_val == 1) option = "Level 1";
+    else if (gen_val == 2) option = "Level 2";
+    else if (gen_val == 3) option = "Level 3";
+    else option = "Off";
+
+    if (option != last_gen_state_) {
+      gen_select_->publish_state(option);
+      last_gen_state_ = option;
+    }
   }
 
   this->publish_state();
@@ -428,8 +462,8 @@ void tclacClimate::set_horizontal_swing_direction(HorizontalSwingDirection direc
   if (force_mode_status_ && allow_take_control) takeControl();
 }
 
-// ====== وضع المولد ======
-void tclacClimate::set_generator_level(int level) {
+// ====== إرسال أمر المولد ======
+void tclacClimate::send_generator_command(int level) {
   uint8_t msg[38] = {0};
   msg[0] = 0xBB;
   msg[1] = 0x00;
