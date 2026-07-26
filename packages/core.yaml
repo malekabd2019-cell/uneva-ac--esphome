@@ -19,7 +19,7 @@ esphome:
         id(${device_name}climate).set_beeper_state(false);
         id(${device_name}climate).set_force_mode_state(false);
         
-        // ضبط وضع المولد عند الإقلاع
+        // إسناد قيمة المولد للشريحة فور الإقلاع
         uint8_t init_mode = id(generator_mode_select).active_index().value_or(0);
         id(${device_name}climate).set_gen_mode(init_mode);
 
@@ -103,8 +103,8 @@ api:
     key: "${api_key}"
 
 ota:
-  platform: esphome
-  password: "${ota_pass}"
+  - platform: esphome
+    password: "${ota_pass}"
 
 wifi:
   id: "${device_name}_wifi"
@@ -185,7 +185,6 @@ switch:
           id(${device_name}climate).set_force_mode_state(false);
 
 select:
-  # وضع المولد (Generator Mode)
   - platform: template
     name: "وضع المولد (Generator)"
     id: generator_mode_select
