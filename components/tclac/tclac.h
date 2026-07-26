@@ -5,10 +5,71 @@
 #include "esphome/core/defines.h"
 #include "esphome/components/climate/climate.h"
 #include "esphome/components/uart/uart.h"
-// لا حاجة لتضمين sensor.h منفصلاً
 
 namespace esphome {
 namespace tclac {
+
+// Определения режимов работы (значения битовых масок)
+#define MODE_POS         8
+#define MODE_MASK        0x0F
+#define MODE_AUTO        0x08
+#define MODE_COOL        0x03
+#define MODE_DRY         0x02
+#define MODE_FAN_ONLY    0x07
+#define MODE_HEAT        0x01
+
+#define FAN_SPEED_POS    9
+#define FAN_SPEED_MASK   0x07
+#define FAN_AUTO         0x00
+#define FAN_LOW          0x01
+#define FAN_MIDDLE       0x06
+#define FAN_MEDIUM       0x03
+#define FAN_HIGH         0x07
+#define FAN_FOCUS        0x05
+#define FAN_QUIET_POS    7
+#define FAN_QUIET        0x80
+#define FAN_DIFFUSE      0x10
+
+#define SWING_POS        10
+#define SWING_MODE_MASK  0x38
+#define SWING_OFF        0x00
+#define SWING_VERTICAL   0x08
+#define SWING_HORIZONTAL 0x10
+#define SWING_BOTH       0x18
+
+#define SET_TEMP_MASK    0x0F
+
+// Перечисления для положений заслонок
+enum class AirflowVerticalDirection {
+  LAST,
+  MAX_UP,
+  UP,
+  CENTER,
+  DOWN,
+  MAX_DOWN
+};
+
+enum class AirflowHorizontalDirection {
+  LAST,
+  MAX_LEFT,
+  LEFT,
+  CENTER,
+  RIGHT,
+  MAX_RIGHT
+};
+
+enum class VerticalSwingDirection {
+  UP_DOWN,
+  UPSIDE,
+  DOWNSIDE
+};
+
+enum class HorizontalSwingDirection {
+  LEFT_RIGHT,
+  LEFTSIDE,
+  CENTER,
+  RIGHTSIDE
+};
 
 class tclacClimate : public Component, public uart::UARTDevice, public climate::Climate {
  public:
@@ -18,7 +79,7 @@ class tclacClimate : public Component, public uart::UARTDevice, public climate::
   void control(const climate::ClimateCall &call) override;
   climate::ClimateTraits traits() override;
 
-  // دوال إعدادات خارجية
+  // Установка параметров из конфигурации
   void set_beeper_state(bool state);
   void set_display_state(bool state);
   void set_force_mode_state(bool state);
@@ -34,9 +95,8 @@ class tclacClimate : public Component, public uart::UARTDevice, public climate::
   void set_vertical_swing_direction(VerticalSwingDirection direction);
   void set_horizontal_swing_direction(HorizontalSwingDirection direction);
 
-  // دوال المولد والأمبير
+  // ====== إضافة وضع المولد ======
   void set_generator_level(int level);
-  void set_ampere_sensor(sensor::Sensor *sensor); // اختياري
 
  protected:
   void readData();
@@ -46,7 +106,7 @@ class tclacClimate : public Component, public uart::UARTDevice, public climate::
   byte getChecksum(const byte *message, size_t size);
   void dataShow(bool flow, bool shine);
 
-  // متغيرات الحالة
+  // Переменные состояния
   bool beeper_status_{true};
   bool display_status_{true};
   bool force_mode_status_{false};
@@ -65,15 +125,10 @@ class tclacClimate : public Component, public uart::UARTDevice, public climate::
   climate::ClimatePreset switch_preset{climate::CLIMATE_PRESET_NONE};
   int target_temperature_set{0};
 
-  // مصفوفات الإرسال والاستقبال
   byte dataTX[38] = {0};
   byte dataRX[62] = {0};
   byte poll[19] = {0xBB, 0x00, 0x01, 0x04, 0x19, 0x03, 0x01, 0x00, 0x00,
                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-  // متغيرات المولد والأمبير
-  int generator_level_{0};
-  sensor::Sensor *ampere_sensor_{nullptr};
 
 #ifdef CONF_RX_LED
   GPIOPin *rx_led_pin_{nullptr};
