@@ -15,7 +15,7 @@ namespace tclac{
 ClimateTraits tclacClimate::traits() {
 	auto traits = climate::ClimateTraits();
 
-	// ضبط حدود وخطوات درجات الحرارة لإعادة إظهار الأزرار بشكل صحيح
+	// إرجاع خيارات الواجهة والأزرار وخطوات الحرارة الصحيحة
 	traits.set_visual_min_temperature(16.0f);
 	traits.set_visual_max_temperature(31.0f);
 	traits.set_visual_temperature_step(1.0f);
@@ -95,7 +95,7 @@ void tclacClimate::update() {
 
 void tclacClimate::readData() {
 	
-	// قراءة درجة الحرارة الصحيحة دون تداخل
+	// قراءة درجة الحرارة الأصلية من الشريحة دون تعديل أو تداخل
 	current_temperature = float((( (dataRX[17] << 8) | dataRX[18] ) / 374 - 32)/1.8);
 	target_temperature = (dataRX[FAN_SPEED_POS] & SET_TEMP_MASK) + 16;
 
@@ -187,7 +187,6 @@ void tclacClimate::readData() {
 	allow_take_control = true;
 }
 
-// Climate control
 void tclacClimate::control(const ClimateCall &call) {
 	if (call.get_mode().has_value()){
 		switch_climate_mode = call.get_mode().value();
@@ -435,7 +434,7 @@ void tclacClimate::takeControl() {
 	dataTX[15] = 0x00;
 	dataTX[16] = 0x00;
 	dataTX[17] = 0x00;
-	dataTX[18] = this->gen_mode_; // إرسال وضع المولد المحدد للمكيف عبر البايت 18
+	dataTX[18] = this->gen_mode_; // إرسال مستوى وضع المولد المحدد مباشرة للمكيف
 	dataTX[20] = 0x00;
 	dataTX[21] = 0x00;
 	dataTX[22] = 0x00;
@@ -598,5 +597,5 @@ void tclacClimate::set_supported_presets(const std::set<climate::ClimatePreset> 
 	this->supported_presets_ = presets;
 }
 
-} // namespace tclac
-} // namespace esphome
+}
+}
