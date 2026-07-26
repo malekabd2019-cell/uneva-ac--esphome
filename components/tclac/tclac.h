@@ -9,7 +9,7 @@
 namespace esphome {
 namespace tclac {
 
-// تعريفات الأوضاع
+// التعريفات الثابتة
 #define MODE_POS         8
 #define MODE_MASK        0x0F
 #define MODE_AUTO        0x08
@@ -39,45 +39,16 @@ namespace tclac {
 
 #define SET_TEMP_MASK    0x0F
 
-// Enums
-enum class AirflowVerticalDirection {
-  LAST,
-  MAX_UP,
-  UP,
-  CENTER,
-  DOWN,
-  MAX_DOWN
-};
+enum class AirflowVerticalDirection { LAST, MAX_UP, UP, CENTER, DOWN, MAX_DOWN };
+enum class AirflowHorizontalDirection { LAST, MAX_LEFT, LEFT, CENTER, RIGHT, MAX_RIGHT };
+enum class VerticalSwingDirection { UP_DOWN, UPSIDE, DOWNSIDE };
+enum class HorizontalSwingDirection { LEFT_RIGHT, LEFTSIDE, CENTER, RIGHTSIDE };
 
-enum class AirflowHorizontalDirection {
-  LAST,
-  MAX_LEFT,
-  LEFT,
-  CENTER,
-  RIGHT,
-  MAX_RIGHT
-};
-
-enum class VerticalSwingDirection {
-  UP_DOWN,
-  UPSIDE,
-  DOWNSIDE
-};
-
-enum class HorizontalSwingDirection {
-  LEFT_RIGHT,
-  LEFTSIDE,
-  CENTER,
-  RIGHTSIDE
-};
-
-class tclacClimate : public Component, public uart::UARTDevice, public climate::Climate, public PollingComponent {
+// الكلاس يرث من climate::Climate (الذي يحوي Component) ومنفذ UART فقط
+class tclacClimate : public uart::UARTDevice, public climate::Climate {
  public:
-  tclacClimate() : PollingComponent(5000) {}  // استطلاع كل 5 ثوانٍ
-
   void setup() override;
-  void loop() override;
-  void update() override;
+  void loop() override;                          // يدير التحديث الدوري
   void control(const climate::ClimateCall &call) override;
   climate::ClimateTraits traits() override;
 
@@ -106,6 +77,7 @@ class tclacClimate : public Component, public uart::UARTDevice, public climate::
   String getHex(byte *message, byte size);
   byte getChecksum(const byte *message, size_t size);
   void dataShow(bool flow, bool shine);
+  void do_update();                              // تنفيذ الاستطلاع الدوري
 
   bool beeper_status_{true};
   bool display_status_{true};
@@ -129,6 +101,8 @@ class tclacClimate : public Component, public uart::UARTDevice, public climate::
   byte dataRX[62] = {0};
   byte poll[19] = {0xBB, 0x00, 0x01, 0x04, 0x19, 0x03, 0x01, 0x00, 0x00,
                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+  uint32_t last_poll_{0};                       // لتوقيت الاستطلاع
 
 #ifdef CONF_RX_LED
   GPIOPin *rx_led_pin_{nullptr};
