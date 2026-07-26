@@ -9,7 +9,7 @@
 namespace esphome {
 namespace tclac {
 
-// Определения режимов работы (значения битовых масок)
+// تعريفات الأوضاع
 #define MODE_POS         8
 #define MODE_MASK        0x0F
 #define MODE_AUTO        0x08
@@ -39,7 +39,7 @@ namespace tclac {
 
 #define SET_TEMP_MASK    0x0F
 
-// Перечисления для положений заслонок
+// Enums
 enum class AirflowVerticalDirection {
   LAST,
   MAX_UP,
@@ -71,15 +71,16 @@ enum class HorizontalSwingDirection {
   RIGHTSIDE
 };
 
-class tclacClimate : public Component, public uart::UARTDevice, public climate::Climate {
+class tclacClimate : public Component, public uart::UARTDevice, public climate::Climate, public PollingComponent {
  public:
+  tclacClimate() : PollingComponent(5000) {}  // استطلاع كل 5 ثوانٍ
+
   void setup() override;
   void loop() override;
   void update() override;
   void control(const climate::ClimateCall &call) override;
   climate::ClimateTraits traits() override;
 
-  // Установка параметров из конфигурации
   void set_beeper_state(bool state);
   void set_display_state(bool state);
   void set_force_mode_state(bool state);
@@ -95,7 +96,7 @@ class tclacClimate : public Component, public uart::UARTDevice, public climate::
   void set_vertical_swing_direction(VerticalSwingDirection direction);
   void set_horizontal_swing_direction(HorizontalSwingDirection direction);
 
-  // ====== إضافة وضع المولد ======
+  // وضع المولد
   void set_generator_level(int level);
 
  protected:
@@ -106,7 +107,6 @@ class tclacClimate : public Component, public uart::UARTDevice, public climate::
   byte getChecksum(const byte *message, size_t size);
   void dataShow(bool flow, bool shine);
 
-  // Переменные состояния
   bool beeper_status_{true};
   bool display_status_{true};
   bool force_mode_status_{false};
