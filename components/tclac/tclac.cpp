@@ -15,15 +15,26 @@ namespace tclac{
 ClimateTraits tclacClimate::traits() {
 	auto traits = climate::ClimateTraits();
 
-	traits.set_supports_action(false);
-	traits.set_supports_current_temperature(true);
-	traits.set_supports_two_point_target_temperature(false);
+	// Современный API (feature flags) вместо устаревших/удалённых сеттеров
+	// set_supports_action(false) и set_supports_two_point_target_temperature(false)
+	// не нужны явно - соответствующие биты просто не выставляются
+	traits.set_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);
 
-	traits.set_supported_modes(this->supported_modes_);
-	traits.set_supported_presets(this->supported_presets_);
-	traits.set_supported_fan_modes(this->supported_fan_modes_);
-	traits.set_supported_swing_modes(this->supported_swing_modes_);
-	
+	// Заполняем маски через add_* вместо set_*(std::set<...>),
+	// т.к. новые версии ESPHome требуют ClimateModeMask, а не std::set напрямую
+	for (auto mode : this->supported_modes_) {
+		traits.add_supported_mode(mode);
+	}
+	for (auto preset : this->supported_presets_) {
+		traits.add_supported_preset(preset);
+	}
+	for (auto fan_mode : this->supported_fan_modes_) {
+		traits.add_supported_fan_mode(fan_mode);
+	}
+	for (auto swing_mode : this->supported_swing_modes_) {
+		traits.add_supported_swing_mode(swing_mode);
+	}
+
 	traits.add_supported_mode(climate::CLIMATE_MODE_OFF);			// Выключенный режим кондиционера доступен всегда
 	traits.add_supported_mode(climate::CLIMATE_MODE_AUTO);			// Автоматический режим кондиционера тоже
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);		// Автоматический режим вентилятора доступен всегда
@@ -643,19 +654,4 @@ void tclacClimate::set_display_state(bool state) {
 }
 // Получение состояния режима принудительного применения настроек
 void tclacClimate::set_force_mode_state(bool state) {
-	this->force_mode_status_ = state;
-}
-// Получение уровня режима генератора (GEN Mode) и применение его немедленно
-void tclacClimate::set_gen_mode(uint8_t level) {
-	this->switch_gen_mode = level;
-	if (allow_take_control) {
-		tclacClimate::takeControl();
-	}
-}
-// Получение пина светодиода приема данных
-#ifdef CONF_RX_LED
-void tclacClimate::set_rx_led_pin(GPIOPin *rx_led_pin) {
-	this->rx_led_pin_ = rx_led_pin;
-}
-#endif
-// Получение пина светодиода передачи д
+	this->force_mode_status_ = s
