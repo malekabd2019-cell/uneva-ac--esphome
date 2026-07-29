@@ -1,63 +1,42 @@
 substitutions:
-# Eindeutiger Name für diese Konfiguration – verwende nur lateinische Buchstaben und Zahlen,
-# keine Leerzeichen oder Sonderzeichen, z. B. "tclac".
-# Wenn du mehrere Klimamodule hast, muss device_name entsprechend geändert werden,
-# z. B. durch Anhängen von Zahlen: tclac1, tclac2, tclac3…
+# اسم فريد لهذا الإعداد - حروف لاتينية وأرقام فقط، بدون مسافات أو رموز خاصة
   device_name: tclac
-# Menschlich lesbarer Name für das Klimagerät, angezeigt in der Benutzeroberfläche:
+# الاسم اللي يظهر بواجهة Home Assistant
   humanly_name: TCL Air Conditioner
-# WLAN-Zugangsdaten:
+# بيانات شبكة WiFi
   wifi_ssid: "TOTOLINK ND300"
   wifi_password: "A777763945A"
-# Passwort für den Wiederherstellungsmodus – der Hotspot heißt dann: "{device_name} Fallback Hotspot"
+# كلمة مرور وضع الاسترجاع (Fallback Hotspot) - يظهر باسم "{device_name} Fallback Hotspot"
   recovery_pass: mKSzmBdt7DAj
-# Passwort für OTA-Updates – wird einmal generiert und dauerhaft verwendet:
-  ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
-# API-Schlüssel zur Verbindung mit Home Assistant – neuen Schlüssel hier generieren: https://esphome.io/components/api.html
-  api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
-# GPIO-Pins des Moduls, an die UART angeschlossen ist:
+# كلمة مرور تحديثات OTA (التحديث اللاسلكي) - تولّدت عشوائيًا خصيصًا لك، احتفظ فيها
+  ota_pass: 5950bb7ae53d3f47906c72c6fd80d7ec
+# مفتاح تشفير API للاتصال بـ Home Assistant - تولّد عشوائيًا خصيصًا لك
+  api_key: wnklhAEmHuPFDE8ruCN0mvM2OaHvzF1Co+20BPM2yao=
+# البنات المتصلة بلوحة المكيف عبر UART (حسب توصيلك الفعلي)
   uart_rx: GPIO16
   uart_tx: GPIO17
-# GPIO-Pins für Status-LEDs (Empfang/Senden). Funktionieren nur, wenn "leds" in "packages" aktiviert ist.
-# Falls du keine LEDs verwenden möchtest, kannst du hier beliebige Werte eintragen.
+# بنات LED الحالة (استقبال/إرسال) - تعمل فقط لو فعّلت packages/leds.yaml
   receive_led: GPIO6
   transmit_led: GPIO4
 
-# Eingebundene Dateien – werden automatisch aus dem Internet geladen und aktualisiert.
-# Kommentiere die gewünschten Optionen ein.
-# Beschreibung der Optionen:
-# - packages/leds.yaml – LEDs zur Anzeige von Senden/Empfangen; Pins über receive_led / transmit_led definieren
-#
-# Alle eingetragenen Zeilen müssen exakt auf dieser Einrückungsebene stehen – sonst kommt es zu Fehlern!
+# الملفات اللي تنجلب تلقائيًا من ريبوك على GitHub (وتتحدث تلقائيًا كل 30 ثانية)
 packages:
   remote_package:
     url: https://github.com/malekabd2019-cell/uneva-ac--esphome.git
     ref: main
     files:
-    # v – Zeilen müssen exakt hier ausgerichtet sein, sonst gibt’s Probleme!
-      - packages/core.yaml # Das Herzstück des Ganzen
+      - packages/core.yaml # قلب المشروع - فيه كل الإعدادات (WiFi, OTA, API, المكيف...الخ)
       # - packages/leds.yaml
     refresh: 30s
 
-# Ausgewähltes Modul, das mit dieser Firmware geflasht wird.
-
-# ESP32
+# لوحة الـ ESP32 اللي بتفلش عليها (ESP32 DevKit 38-pin مع معالج ESP-32D)
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
-# ESP-01S (موقف)
-#esp8266:
-#  board: esp01_1m
-
-# Status-LED – optional aktivieren, wenn freie Pins vorhanden sind
+# مؤشر LED حالة - اختياري، فعّله لو عندك بن فاضي
 #status_led:
 #  pin:
 #    number: GPIO5
 #    inverted: false
-
-# ========== إضافة التحديث اللاسلكي (OTA) ==========
-ota:
-  - platform: esphome
-    password: ${ota_pass}
