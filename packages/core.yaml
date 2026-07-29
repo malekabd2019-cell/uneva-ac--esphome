@@ -1,3 +1,7 @@
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # #                                   NICHT BEARBEITEN!!                                  # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
 # Компонент климата
 external_components:
   - source:
@@ -19,10 +23,6 @@ esphome:
         id(${device_name}climate).set_beeper_state(false);
         id(${device_name}climate).set_force_mode_state(false);
         
-        // إسناد قيمة المولد للشريحة فور الإقلاع
-        uint8_t init_mode = id(generator_mode_select).active_index().value_or(0);
-        id(${device_name}climate).set_generator_level(init_mode);
-
         if (id(display_mode).state){
           id(${device_name}climate).set_display_state(true);
         } else {
@@ -89,6 +89,7 @@ esphome:
         } else {
           id(${device_name}climate).set_force_mode_state(false);
         }
+        id(${device_name}climate).set_gen_mode(id(gen_mode).active_index().value());
 
 uart:
   baud_rate: 9600
@@ -103,8 +104,8 @@ api:
     key: "${api_key}"
 
 ota:
-  - platform: esphome
-    password: "${ota_pass}"
+- platform: esphome
+  password: "${ota_pass}"
 
 wifi:
   id: "${device_name}_wifi"
@@ -116,10 +117,19 @@ wifi:
 
 captive_portal:
 
+
+# # # # # # # # # # # # # # # # # # # # # # #
+# # # # #     НЕ РЕДАКТИРОВАТЬ!     # # # # #
+# # # # # # # # # # # # # # # # # # # # # # #
+
+# ОБЯЗАТЕЛЬНО отключаем логгирование через UART
 logger:
   baud_rate: 0
 
+# Раздел настроек устройства:
+# - Переключатели
 switch:
+  # Пищалка для подтверждения команд, по умолчанию выключена
   - name: Beeper
     platform: template
     device_class: switch
@@ -136,6 +146,7 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_beeper_state(false);
   
+  # Индикатор уставки температуры на корпусе внутреннего блока, по умолчанию включен
   - name: Display
     platform: template
     device_class: switch
@@ -152,6 +163,7 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_display_state(false);
   
+  # Светодиодная индикация обмена данными с кондиционером, по умолчанию выключена
   - name: Display on module
     platform: template
     device_class: switch
@@ -184,24 +196,27 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_force_mode_state(false);
 
-select:
-  - platform: template
-    name: "وضع المولد (Generator)"
-    id: generator_mode_select
-    icon: "mdi:generator-portable"
-    options:
-      - "Off"
-      - "Level 1"
-      - "Level 2"
-      - "Level 3"
-    optimistic: true
-    # يمكنك إضافة restore_value إذا أردت استعادته تلقائياً أيضاً
-    on_value:
-      then:
-        lambda: !lambda |-
-          uint8_t mode = id(generator_mode_select).active_index().value_or(0);
-          id(${device_name}climate).set_generator_level(mode);
+# - Периодическая синхронизация состояния GEN Mode с реальным состоянием кондиционера
+# (на случай если режим был изменён с оригинального пульта)
+interval:
+  - interval: 5s
+    then:
+      lambda: |-
+        uint8_t level = id(${device_name}climate).get_gen_mode();
+        std::string opt;
+        switch (level) {
+          case 1: opt = "L1"; break;
+          case 2: opt = "L2"; break;
+          case 3: opt = "L3"; break;
+          default: opt = "Off"; break;
+        }
+        if (id(gen_mode).state != opt) {
+          id(gen_mode).publish_state(opt);
+        }
 
+# - Выпадающие списки
+select:
+  # Настройка вертикального качания
   - platform: template
     name: Vertical swing
     id: vswing
@@ -223,6 +238,7 @@ select:
             id(${device_name}climate).set_vertical_swing_direction(esphome::tclac::VerticalSwingDirection::DOWNSIDE);
           }
 
+  # Настройка горизонтального качания
   - platform: template
     name: Horizontal swing
     id: hswing
@@ -247,6 +263,7 @@ select:
             id(${device_name}climate).set_horizontal_swing_direction(esphome::tclac::HorizontalSwingDirection::RIGHTSIDE);
           }
 
+  # Настройка фиксации вертикальной заслонки
   - platform: template
     name: Vertical fixing
     id: vfixing
@@ -277,6 +294,7 @@ select:
             id(${device_name}climate).set_vertical_airflow(esphome::tclac::AirflowVerticalDirection::MAX_DOWN);
           }
 
+  # Настройка фиксации горизонатальных заслонок
   - platform: template
     name: Horizontal fixing
     id: hfixing
@@ -307,7 +325,25 @@ select:
             id(${device_name}climate).set_horizontal_airflow(esphome::tclac::AirflowHorizontalDirection::MAX_RIGHT);
           }
 
+  # Настройка уровня режима генератора (GEN Mode)
+  - platform: template
+    name: GEN Mode
+    id: gen_mode
+    entity_category: config
+    options:
+      - "Off"
+      - "L1"
+      - "L2"
+      - "L3"
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: !lambda |-
+          id(${device_name}climate).set_gen_mode(id(gen_mode).active_index().value());
+
 climate:
   - platform: tclac
     name: "${device_name} Climate"
     id: ${device_name}climate
+    
