@@ -1,0 +1,42 @@
+substitutions:
+# اسم فريد لهذا الإعداد - حروف لاتينية وأرقام فقط، بدون مسافات أو رموز خاصة
+  device_name: tclac
+# الاسم اللي يظهر بواجهة Home Assistant
+  humanly_name: TCL Air Conditioner
+# بيانات شبكة WiFi
+  wifi_ssid: "TOTOLINK ND300"
+  wifi_password: "A777763945A"
+# كلمة مرور وضع الاسترجاع (Fallback Hotspot) - يظهر باسم "{device_name} Fallback Hotspot"
+  recovery_pass: mKSzmBdt7DAj
+# كلمة مرور تحديثات OTA (التحديث اللاسلكي) - تولّدت عشوائيًا خصيصًا لك، احتفظ فيها
+  ota_pass: 5950bb7ae53d3f47906c72c6fd80d7ec
+# مفتاح تشفير API للاتصال بـ Home Assistant - تولّد عشوائيًا خصيصًا لك
+  api_key: wnklhAEmHuPFDE8ruCN0mvM2OaHvzF1Co+20BPM2yao=
+# البنات المتصلة بلوحة المكيف عبر UART (حسب توصيلك الفعلي)
+  uart_rx: GPIO16
+  uart_tx: GPIO17
+# بنات LED الحالة (استقبال/إرسال) - تعمل فقط لو فعّلت packages/leds.yaml
+  receive_led: GPIO6
+  transmit_led: GPIO4
+
+# الملفات اللي تنجلب تلقائيًا من ريبوك على GitHub (وتتحدث تلقائيًا كل 30 ثانية)
+packages:
+  remote_package:
+    url: https://github.com/malekabd2019-cell/uneva-ac--esphome.git
+    ref: main
+    files:
+      - packages/core.yaml # قلب المشروع - فيه كل الإعدادات (WiFi, OTA, API, المكيف...الخ)
+      # - packages/leds.yaml
+    refresh: 30s
+
+# لوحة الـ ESP32 اللي بتفلش عليها (ESP32 DevKit 38-pin مع معالج ESP-32D)
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# مؤشر LED حالة - اختياري، فعّله لو عندك بن فاضي
+#status_led:
+#  pin:
+#    number: GPIO5
+#    inverted: false
