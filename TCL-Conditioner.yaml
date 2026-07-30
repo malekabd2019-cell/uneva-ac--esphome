@@ -28,4 +28,7 @@ esp32:
 ota:
   - platform: esphome
     password: "${ota_pass}"
-    
+
+web_server:
+  port: 80
+  
