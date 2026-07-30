@@ -117,6 +117,33 @@ wifi:
 
 captive_portal:
 
+# ============================================================
+# كشف انقطاع الكهرباء العامة عبر ESP-NOW (جهاز "الحارس" المنفصل)
+# ============================================================
+espnow:
+  on_broadcast:
+    then:
+      - lambda: |-
+          std::string payload(reinterpret_cast<const char*>(x.data), x.size);
+          if (payload == "TCLGRID01") {
+            id(last_grid_ping) = millis();
+            if (!id(grid_ok)) {
+              id(grid_ok) = true;
+              ESP_LOGI("GRID", "رجعت الكهرباء العامة - رجوع للوضع الطبيعي");
+              id(${device_name}climate).set_gen_mode(0);
+            }
+          }
+
+globals:
+  - id: last_grid_ping
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: grid_ok
+    type: bool
+    restore_value: false
+    initial_value: 'true'
+
 
 # # # # # # # # # # # # # # # # # # # # # # #
 # # # # #     НЕ РЕДАКТИРОВАТЬ!     # # # # #
@@ -130,7 +157,7 @@ logger:
 # - Переключатели
 switch:
   # Пищалка для подтверждения команд, по умолчанию выключена
-  - name: Beeper
+  - name: "الصفارة"
     platform: template
     device_class: switch
     id: beep_mode
@@ -147,7 +174,7 @@ switch:
           id(${device_name}climate).set_beeper_state(false);
   
   # Индикатор уставки температуры на корпусе внутреннего блока, по умолчанию включен
-  - name: Display
+  - name: "الشاشة"
     platform: template
     device_class: switch
     id: display_mode
@@ -164,7 +191,7 @@ switch:
           id(${device_name}climate).set_display_state(false);
   
   # Светодиодная индикация обмена данными с кондиционером, по умолчанию выключена
-  - name: Display on module
+  - name: "مؤشر LED الاتصال"
     platform: template
     device_class: switch
     id: ledflash_mode
@@ -180,7 +207,7 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_module_display_state(false);
           
-  - name: Force config
+  - name: "التطبيق الفوري للإعدادات"
     platform: template
     device_class: switch
     id: force_mode
@@ -199,6 +226,17 @@ switch:
 # - Периодическая синхронизация состояния GEN Mode с реальным состоянием кондиционера
 # (на случай если режим был изменён с оригинального пульта)
 interval:
+  - interval: 3s
+    then:
+      - lambda: |-
+          uint32_t elapsed = millis() - id(last_grid_ping);
+          // إذا مرّ أكثر من 15 ثانية بدون إشارة من "الحارس"، نعتبر الكهرباء العامة انقطعت
+          if (elapsed > 15000 && id(grid_ok) && id(last_grid_ping) != 0) {
+            id(grid_ok) = false;
+            ESP_LOGW("GRID", "انقطعت الكهرباء العامة - تفعيل GEN L1");
+            id(${device_name}climate).set_gen_mode(1);
+          }
+
   - interval: 5s
     then:
       lambda: |-
@@ -218,13 +256,13 @@ interval:
 select:
   # Настройка вертикального качания
   - platform: template
-    name: Vertical swing
+    name: "التمايل الرأسي"
     id: vswing
     entity_category: config
     options:
-      - "Von oben nach unten"
-      - "In der oberen Hälfte"
-      - "In der unteren Hälfte"
+      - "من أعلى لأسفل"
+      - "بالنصف العلوي"
+      - "بالنصف السفلي"
     optimistic: true
     restore_value: true
     on_value:
@@ -240,14 +278,14 @@ select:
 
   # Настройка горизонтального качания
   - platform: template
-    name: Horizontal swing
+    name: "التمايل الأفقي"
     id: hswing
     entity_category: config
     options:
-      - "Von links nach rechts"
-      - "Im linken Bereich"
-      - "Im Zentrum"
-      - "Im rechten Bereich"
+      - "من اليسار لليمين"
+      - "بالجهة اليسرى"
+      - "بالوسط"
+      - "بالجهة اليمنى"
     optimistic: true
     restore_value: true
     on_value:
@@ -265,16 +303,16 @@ select:
 
   # Настройка фиксации вертикальной заслонки
   - platform: template
-    name: Vertical fixing
+    name: "تثبيت الاتجاه الرأسي"
     id: vfixing
     entity_category: config
     options:
-      - "Letzte Position"
-      - "Ganz nach oben"
-      - "In der oberen Hälfte"
-      - "In der Mitte"
-      - "In der unteren Hälfte"
-      - "Ganz nach unten"
+      - "آخر وضع"
+      - "لأعلى تمامًا"
+      - "بالنصف العلوي"
+      - "بالمنتصف"
+      - "بالنصف السفلي"
+      - "لأسفل تمامًا"
     optimistic: true
     restore_value: true
     on_value:
@@ -296,16 +334,16 @@ select:
 
   # Настройка фиксации горизонатальных заслонок
   - platform: template
-    name: Horizontal fixing
+    name: "تثبيت الاتجاه الأفقي"
     id: hfixing
     entity_category: config
     options:
-      - "Letzte Position"
-      - "Ganz nach links"
-      - "In der linken Hälfte"
-      - "In der Mitte"
-      - "In der rechten Hälfte"
-      - "Ganz nach rechts"
+      - "آخر وضع"
+      - "لليسار تمامًا"
+      - "بالنصف الأيسر"
+      - "بالمنتصف"
+      - "بالنصف الأيمن"
+      - "لليمين تمامًا"
     optimistic: true
     restore_value: true
     on_value:
@@ -327,7 +365,7 @@ select:
 
   # Настройка уровня режима генератора (GEN Mode)
   - platform: template
-    name: GEN Mode
+    name: "وضع المولد"
     id: gen_mode
     entity_category: config
     options:
@@ -344,5 +382,6 @@ select:
 
 climate:
   - platform: tclac
-    name: "${device_name} Climate"
+    name: "المكيف"
     id: ${device_name}climate
+    
