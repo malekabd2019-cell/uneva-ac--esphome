@@ -50,10 +50,10 @@ ClimateTraits tclacClimate::traits() {
 	traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);
 	traits.add_supported_preset(ClimatePreset::CLIMATE_PRESET_NONE);
 
-	// التحكم بالحرارة المطلوبة بدرجات صحيحة وبخطوة 1 درجة فقط
+	// تفعيل عرض الفاصلة العشرية (0.1) لإظهار كسور حرارة الغرفة
 	traits.set_visual_min_temperature(16.0f);
 	traits.set_visual_max_temperature(31.0f);
-	traits.set_visual_temperature_step(1.0f);
+	traits.set_visual_temperature_step(0.1f);
 
 	return traits;
 }
@@ -111,10 +111,11 @@ void tclacClimate::update() {
 
 void tclacClimate::readData() {
 
-	// قراءة حرارة الغرفة بالحسابات العشرية الدقيقة لظهور الكسور (مثل 28.3°C)
-	current_temperature = (((float)((dataRX[17] << 8) | dataRX[18])) / 374.0f - 32.0f) / 1.8f;
+	// حساب حرارة الغرفة بدقة الفاصلة العشرية
+	uint16_t raw_temp = (dataRX[17] << 8) | dataRX[18];
+	current_temperature = ((float)raw_temp / 374.0f - 32.0f) / 1.8f;
 	
-	// ضبط الحرارة المطلوبة لتكون أرقاماً صحيحة فقط
+	// الحرارة المطلوبة المحددة للمكيف
 	target_temperature = roundf((dataRX[FAN_SPEED_POS] & SET_TEMP_MASK) + 16);
 
 	current_gen_mode = dataRX[47];
@@ -448,7 +449,7 @@ void tclacClimate::takeControl() {
 			ESP_LOGD("TCL", "Horizontal fix: lefter");
 			break;
 		case AirflowHorizontalDirection::CENTER:
-			dataTX[33]	+= 0b00000011;
+			dataTX[33]	+= 0b0000011;
 			ESP_LOGD("TCL", "Horizontal fix: center");
 			break;
 		case AirflowHorizontalDirection::RIGHT:
