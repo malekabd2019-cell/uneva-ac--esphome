@@ -30,22 +30,30 @@ ClimateTraits tclacClimate::traits() {
 		traits.add_supported_swing_mode(swing_mode);
 	}
 
-	// إظهار كافة الأوضاع الأساسية بشكل دائم في واجهة Home Assistant
+	// إظهار كافة الأوضاع الأساسية
 	traits.add_supported_mode(climate::CLIMATE_MODE_OFF);
 	traits.add_supported_mode(climate::CLIMATE_MODE_AUTO);
-	traits.add_supported_mode(climate::CLIMATE_MODE_COOL);      // تبريد
-	traits.add_supported_mode(climate::CLIMATE_MODE_HEAT);      // تدفئة
-	traits.add_supported_mode(climate::CLIMATE_MODE_DRY);       // تجفيف
-	traits.add_supported_mode(climate::CLIMATE_MODE_FAN_ONLY);  // مروحة فقط
+	traits.add_supported_mode(climate::CLIMATE_MODE_COOL);
+	traits.add_supported_mode(climate::CLIMATE_MODE_HEAT);
+	traits.add_supported_mode(climate::CLIMATE_MODE_DRY);
+	traits.add_supported_mode(climate::CLIMATE_MODE_FAN_ONLY);
 
-	// سرعات المروحة الأساسية
+	// إظهار كافة سرعات المروحة (Auto, Low, Medium, High, Quiet, Focus, Diffuse)
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_LOW);
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_MEDIUM);
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_HIGH);
+	traits.add_supported_fan_mode(climate::CLIMATE_FAN_QUIET);
+	traits.add_supported_fan_mode(climate::CLIMATE_FAN_FOCUS);
+	traits.add_supported_fan_mode(climate::CLIMATE_FAN_DIFFUSE);
 
 	traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);
 	traits.add_supported_preset(ClimatePreset::CLIMATE_PRESET_NONE);
+
+	// ضبط التحكم بدرجة الحرارة لتكون أرقام صحيحة وبخطوة 1 درجة فقط
+	traits.set_visual_min_temperature(16.0f);
+	traits.set_visual_max_temperature(31.0f);
+	traits.set_visual_temperature_step(1.0f);
 
 	return traits;
 }
@@ -104,7 +112,8 @@ void tclacClimate::update() {
 void tclacClimate::readData() {
 
 	current_temperature = float((( (dataRX[17] << 8) | dataRX[18] ) / 374 - 32)/1.8);
-	target_temperature = (dataRX[FAN_SPEED_POS] & SET_TEMP_MASK) + 16;
+	// تقريب الحرارة المستهدفة لأقرب رقم صحيح لمنع الكسورة مثل 20.7
+	target_temperature = roundf((dataRX[FAN_SPEED_POS] & SET_TEMP_MASK) + 16);
 
 	current_gen_mode = dataRX[47];
 
@@ -465,7 +474,7 @@ void tclacClimate::takeControl() {
 	dataTX[15] = 0x00;
 	dataTX[16] = 0x00;
 	dataTX[17] = 0x00;
-	dataTX[18] = switch_gen_mode;	// وضع المولد (GEN Mode): 0=Off, 1=L1, 2=L2, 3=L3
+	dataTX[18] = switch_gen_mode;
 	dataTX[20] = 0x00;
 	dataTX[21] = 0x00;
 	dataTX[22] = 0x00;
