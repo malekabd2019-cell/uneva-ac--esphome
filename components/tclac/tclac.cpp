@@ -1,8 +1,8 @@
 /**
-* Create by Miguel Ángel López on 20/07/19
+* Create by Miguel أپngel Lأ³pez on 20/07/19
 * and modify by xaxexa
 * Refactoring & component making:
-* Соловей с паяльником 15.03.2024
+* ذ،ذ¾ذ»ذ¾ذ²ذµذ¹ رپ ذ؟ذ°رڈذ»رŒذ½ذ¸ذ؛ذ¾ذ¼ 15.03.2024
 **/
 #include "esphome.h"
 #include "esphome/core/defines.h"
@@ -30,7 +30,7 @@ ClimateTraits tclacClimate::traits() {
 		traits.add_supported_swing_mode(swing_mode);
 	}
 
-	// إظهار كافة الأوضاع الأساسية
+	// ط¥ط¸ظ‡ط§ط± ظƒط§ظپط© ط§ظ„ط£ظˆط¶ط§ط¹ ط§ظ„ط£ط³ط§ط³ظٹط©
 	traits.add_supported_mode(climate::CLIMATE_MODE_OFF);
 	traits.add_supported_mode(climate::CLIMATE_MODE_AUTO);
 	traits.add_supported_mode(climate::CLIMATE_MODE_COOL);
@@ -38,7 +38,7 @@ ClimateTraits tclacClimate::traits() {
 	traits.add_supported_mode(climate::CLIMATE_MODE_DRY);
 	traits.add_supported_mode(climate::CLIMATE_MODE_FAN_ONLY);
 
-	// إظهار كافة سرعات المروحة
+	// ط¥ط¸ظ‡ط§ط± ظƒط§ظپط© ط³ط±ط¹ط§طھ ط§ظ„ظ…ط±ظˆط­ط©
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_LOW);
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_MEDIUM);
@@ -50,10 +50,13 @@ ClimateTraits tclacClimate::traits() {
 	traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);
 	traits.add_supported_preset(ClimatePreset::CLIMATE_PRESET_NONE);
 
-	// ضبط التحكم بالحرارة المطلوبة لتكون بأرقام صحيحة وبخطوة 1 درجة كاملة
+	// ط¶ط¨ط· ط§ظ„طھط­ظƒظ… ط¨ط§ظ„ط­ط±ط§ط±ط© ط§ظ„ظ…ط·ظ„ظˆط¨ط© ظ„طھظƒظˆظ† ط¨ط£ط±ظ‚ط§ظ… طµط­ظٹط­ط© ظˆط¨ط®ط·ظˆط© 1 ط¯ط±ط¬ط© ظƒط§ظ…ظ„ط©
 	traits.set_visual_min_temperature(16.0f);
 	traits.set_visual_max_temperature(31.0f);
 	traits.set_visual_temperature_step(1.0f);
+
+	// ط®ط·ظˆط© ط¹ط±ط¶ ظ…ظ†ظپطµظ„ط© ظ„ط¯ط±ط¬ط© ط§ظ„ط­ط±ط§ط±ط© ط§ظ„ط­ط§ظ„ظٹط© ط§ظ„ظ…ظ‚ط±ظˆط،ط© (ط§ظ„ط؛ط±ظپط©) - طھط¸ظ‡ط± ط¨ظپط§طµظ„ط© ط¹ط´ط±ظٹط©
+	traits.set_visual_current_temperature_step(0.1f);
 
 	return traits;
 }
@@ -111,11 +114,11 @@ void tclacClimate::update() {
 
 void tclacClimate::readData() {
 
-	// قراءة حرارة الغرفة الحالية بالكسر العشري الدقيق
+	// ظ‚ط±ط§ط،ط© ط­ط±ط§ط±ط© ط§ظ„ط؛ط±ظپط© ط§ظ„ط­ط§ظ„ظٹط© ط¨ط§ظ„ظƒط³ط± ط§ظ„ط¹ط´ط±ظٹ ط§ظ„ط¯ظ‚ظٹظ‚
 	uint16_t raw_temp = (dataRX[17] << 8) | dataRX[18];
 	current_temperature = ((float)raw_temp / 374.0f - 32.0f) / 1.8f;
 	
-	// جعل الحرارة المطلوبة رقم صحيح دائم دون أعشار
+	// ط¬ط¹ظ„ ط§ظ„ط­ط±ط§ط±ط© ط§ظ„ظ…ط·ظ„ظˆط¨ط© ط±ظ‚ظ… طµط­ظٹط­ ط¯ط§ط¦ظ… ط¯ظˆظ† ط£ط¹ط´ط§ط±
 	target_temperature = roundf((dataRX[FAN_SPEED_POS] & SET_TEMP_MASK) + 16);
 
 	current_gen_mode = dataRX[47];
