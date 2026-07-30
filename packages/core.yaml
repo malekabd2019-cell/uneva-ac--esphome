@@ -157,7 +157,7 @@ logger:
 # - Переключатели
 switch:
   # Пищалка для подтверждения команд, по умолчанию выключена
-  - name: "الصفارة"
+  - name: "الصفارة (Beeper)"
     platform: template
     device_class: switch
     id: beep_mode
@@ -174,7 +174,7 @@ switch:
           id(${device_name}climate).set_beeper_state(false);
   
   # Индикатор уставки температуры на корпусе внутреннего блока, по умолчанию включен
-  - name: "الشاشة"
+  - name: "الشاشة (Display)"
     platform: template
     device_class: switch
     id: display_mode
@@ -207,7 +207,7 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_module_display_state(false);
           
-  - name: "التطبيق الفوري للإعدادات"
+  - name: "التطبيق الفوري للإعدادات (Force)"
     platform: template
     device_class: switch
     id: force_mode
@@ -256,7 +256,7 @@ interval:
 select:
   # Настройка вертикального качания
   - platform: template
-    name: "التمايل الرأسي"
+    name: "التمايل الرأسي (V-Swing)"
     id: vswing
     entity_category: config
     options:
@@ -278,7 +278,7 @@ select:
 
   # Настройка горизонтального качания
   - platform: template
-    name: "التمايل الأفقي"
+    name: "التمايل الأفقي (H-Swing)"
     id: hswing
     entity_category: config
     options:
@@ -303,7 +303,7 @@ select:
 
   # Настройка фиксации вертикальной заслонки
   - platform: template
-    name: "تثبيت الاتجاه الرأسي"
+    name: "تثبيت الاتجاه الرأسي (V-Fix)"
     id: vfixing
     entity_category: config
     options:
@@ -334,7 +334,7 @@ select:
 
   # Настройка фиксации горизонатальных заслонок
   - platform: template
-    name: "تثبيت الاتجاه الأفقي"
+    name: "تثبيت الاتجاه الأفقي (H-Fix)"
     id: hfixing
     entity_category: config
     options:
@@ -365,7 +365,7 @@ select:
 
   # Настройка уровня режима генератора (GEN Mode)
   - platform: template
-    name: "وضع المولد"
+    name: "وضع المولد (GEN)"
     id: gen_mode
     entity_category: config
     options:
@@ -382,5 +382,6 @@ select:
 
 climate:
   - platform: tclac
-    name: "المكيف"
+    name: "المكيف (AC)"
     id: ${device_name}climate
+    
