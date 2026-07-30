@@ -38,7 +38,7 @@ ClimateTraits tclacClimate::traits() {
 	traits.add_supported_mode(climate::CLIMATE_MODE_DRY);
 	traits.add_supported_mode(climate::CLIMATE_MODE_FAN_ONLY);
 
-	// إظهار كافة سرعات المروحة (Auto, Low, Medium, High, Quiet, Focus, Diffuse)
+	// إظهار كافة سرعات المروحة
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_LOW);
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_MEDIUM);
@@ -50,7 +50,7 @@ ClimateTraits tclacClimate::traits() {
 	traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);
 	traits.add_supported_preset(ClimatePreset::CLIMATE_PRESET_NONE);
 
-	// ضبط التحكم بدرجة الحرارة لتكون أرقام صحيحة وبخطوة 1 درجة فقط
+	// التحكم بالحرارة المطلوبة بدرجات صحيحة وبخطوة 1 درجة فقط
 	traits.set_visual_min_temperature(16.0f);
 	traits.set_visual_max_temperature(31.0f);
 	traits.set_visual_temperature_step(1.0f);
@@ -111,8 +111,10 @@ void tclacClimate::update() {
 
 void tclacClimate::readData() {
 
-	current_temperature = float((( (dataRX[17] << 8) | dataRX[18] ) / 374 - 32)/1.8);
-	// تقريب الحرارة المستهدفة لأقرب رقم صحيح لمنع الكسورة مثل 20.7
+	// قراءة حرارة الغرفة بالحسابات العشرية الدقيقة لظهور الكسور (مثل 28.3°C)
+	current_temperature = (((float)((dataRX[17] << 8) | dataRX[18])) / 374.0f - 32.0f) / 1.8f;
+	
+	// ضبط الحرارة المطلوبة لتكون أرقاماً صحيحة فقط
 	target_temperature = roundf((dataRX[FAN_SPEED_POS] & SET_TEMP_MASK) + 16);
 
 	current_gen_mode = dataRX[47];
