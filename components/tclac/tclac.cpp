@@ -50,10 +50,10 @@ ClimateTraits tclacClimate::traits() {
 	traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);
 	traits.add_supported_preset(ClimatePreset::CLIMATE_PRESET_NONE);
 
-	// تفعيل عرض الفاصلة العشرية (0.1) لإظهار كسور حرارة الغرفة
+	// ضبط التحكم بالحرارة المطلوبة لتكون بأرقام صحيحة وبخطوة 1 درجة كاملة
 	traits.set_visual_min_temperature(16.0f);
 	traits.set_visual_max_temperature(31.0f);
-	traits.set_visual_temperature_step(0.1f);
+	traits.set_visual_temperature_step(1.0f);
 
 	return traits;
 }
@@ -111,11 +111,11 @@ void tclacClimate::update() {
 
 void tclacClimate::readData() {
 
-	// حساب حرارة الغرفة بدقة الفاصلة العشرية
+	// قراءة حرارة الغرفة الحالية بالكسر العشري الدقيق
 	uint16_t raw_temp = (dataRX[17] << 8) | dataRX[18];
 	current_temperature = ((float)raw_temp / 374.0f - 32.0f) / 1.8f;
 	
-	// الحرارة المطلوبة المحددة للمكيف
+	// جعل الحرارة المطلوبة رقم صحيح دائم دون أعشار
 	target_temperature = roundf((dataRX[FAN_SPEED_POS] & SET_TEMP_MASK) + 16);
 
 	current_gen_mode = dataRX[47];
@@ -235,9 +235,9 @@ void tclacClimate::control(const ClimateCall &call) {
 	}
 	
 	if (call.get_target_temperature().has_value()) {
-		target_temperature_set = 31-(int)call.get_target_temperature().value();
+		target_temperature_set = 31-(int)roundf(call.get_target_temperature().value());
 	} else {
-		target_temperature_set = 31-(int)target_temperature;
+		target_temperature_set = 31-(int)roundf(target_temperature);
 	}
 	
 	is_call_control = true;
@@ -263,7 +263,7 @@ void tclacClimate::takeControl() {
 		switch_preset = preset.value();
 		switch_fan_mode = fan_mode.value();
 		switch_swing_mode = swing_mode;
-		target_temperature_set = 31-(int)target_temperature;
+		target_temperature_set = 31-(int)roundf(target_temperature);
 	}
 	
 	if (beeper_status_){
@@ -449,7 +449,7 @@ void tclacClimate::takeControl() {
 			ESP_LOGD("TCL", "Horizontal fix: lefter");
 			break;
 		case AirflowHorizontalDirection::CENTER:
-			dataTX[33]	+= 0b0000011;
+			dataTX[33]	+= 0b00000011;
 			ESP_LOGD("TCL", "Horizontal fix: center");
 			break;
 		case AirflowHorizontalDirection::RIGHT:
