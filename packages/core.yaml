@@ -124,10 +124,10 @@ espnow:
   on_broadcast:
     then:
       - lambda: |-
-          std::string payload(reinterpret_cast<const char*>(x.data), x.size);
+          std::string payload(reinterpret_cast<const char*>(data), size);
           if (payload == "TCLGRID01") {
             id(last_grid_ping) = millis();
-            if (!id(grid_ok)) {
+            if (id(grid_watch_enabled) && !id(grid_ok)) {
               id(grid_ok) = true;
               ESP_LOGI("GRID", "رجعت الكهرباء العامة - رجوع للوضع الطبيعي");
               id(${device_name}climate).set_gen_mode(0);
@@ -142,6 +142,10 @@ globals:
   - id: grid_ok
     type: bool
     restore_value: false
+    initial_value: 'true'
+  - id: grid_watch_enabled
+    type: bool
+    restore_value: true
     initial_value: 'true'
 
 
@@ -223,6 +227,25 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_force_mode_state(false);
 
+  # تفعيل/إيقاف مراقبة انقطاع الكهرباء العامة والتحويل التلقائي لوضع المولد
+  - name: "مراقبة انقطاع الكهرباء (Grid Watch)"
+    platform: template
+    device_class: switch
+    id: grid_watch_switch
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_ON
+    optimistic: true
+    on_turn_on:
+      then:
+        lambda: !lambda |-
+          id(grid_watch_enabled) = true;
+          ESP_LOGI("GRID", "تم تفعيل مراقبة انقطاع الكهرباء");
+    on_turn_off:
+      then:
+        lambda: !lambda |-
+          id(grid_watch_enabled) = false;
+          ESP_LOGI("GRID", "تم إيقاف مراقبة انقطاع الكهرباء");
+
 # - Периодическая синхронизация состояния GEN Mode с реальным состоянием кондиционера
 # (на случай если режим был изменён с оригинального пульта)
 interval:
@@ -231,7 +254,7 @@ interval:
       - lambda: |-
           uint32_t elapsed = millis() - id(last_grid_ping);
           // إذا مرّ أكثر من 15 ثانية بدون إشارة من "الحارس"، نعتبر الكهرباء العامة انقطعت
-          if (elapsed > 15000 && id(grid_ok) && id(last_grid_ping) != 0) {
+          if (id(grid_watch_enabled) && elapsed > 15000 && id(grid_ok) && id(last_grid_ping) != 0) {
             id(grid_ok) = false;
             ESP_LOGW("GRID", "انقطعت الكهرباء العامة - تفعيل GEN L1");
             id(${device_name}climate).set_gen_mode(1);
